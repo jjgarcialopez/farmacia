@@ -1,0 +1,641 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions
+  name="FarmaciaService"
+  targetNamespace="urn:farmacia:v1"
+  xmlns="http://schemas.xmlsoap.org/wsdl/"
+  xmlns:tns="urn:farmacia:v1"
+  xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <types>
+    <xsd:schema targetNamespace="urn:farmacia:v1" elementFormDefault="qualified">
+      <xsd:simpleType name="RoleType">
+        <xsd:restriction base="xsd:string">
+          <xsd:enumeration value="administrador"/>
+          <xsd:enumeration value="operador"/>
+          <xsd:enumeration value="consulta"/>
+          <xsd:enumeration value="auditor"/>
+        </xsd:restriction>
+      </xsd:simpleType>
+      <xsd:simpleType name="SaleStateType">
+        <xsd:restriction base="xsd:string">
+          <xsd:enumeration value="confirmada"/>
+          <xsd:enumeration value="revertida"/>
+        </xsd:restriction>
+      </xsd:simpleType>
+      <xsd:simpleType name="MovementKindType">
+        <xsd:restriction base="xsd:string">
+          <xsd:enumeration value="entrada"/>
+          <xsd:enumeration value="salida"/>
+          <xsd:enumeration value="ajuste"/>
+          <xsd:enumeration value="reversión"/>
+        </xsd:restriction>
+      </xsd:simpleType>
+      <xsd:complexType name="AuthHeaderType">
+        <xsd:sequence>
+          <xsd:element name="token" type="xsd:string" minOccurs="0"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:element name="AuthHeader" type="tns:AuthHeaderType"/>
+
+      <xsd:complexType name="UserType">
+        <xsd:sequence>
+          <xsd:element name="id" type="xsd:long"/>
+          <xsd:element name="nombre" type="xsd:string"/>
+          <xsd:element name="correo" type="xsd:string"/>
+          <xsd:element name="rol" type="tns:RoleType"/>
+          <xsd:element name="activo" type="xsd:boolean"/>
+          <xsd:element name="creadoEn" type="xsd:dateTime"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="MedicationType">
+        <xsd:sequence>
+          <xsd:element name="id" type="xsd:long"/>
+          <xsd:element name="codigo" type="xsd:string"/>
+          <xsd:element name="nombre" type="xsd:string"/>
+          <xsd:element name="principioActivo" type="xsd:string"/>
+          <xsd:element name="presentacion" type="xsd:string"/>
+          <xsd:element name="requiereFormula" type="xsd:boolean"/>
+          <xsd:element name="precioReferencia" type="xsd:decimal"/>
+          <xsd:element name="activo" type="xsd:boolean"/>
+          <xsd:element name="creadoEn" type="xsd:dateTime"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="BatchType">
+        <xsd:sequence>
+          <xsd:element name="id" type="xsd:long"/>
+          <xsd:element name="medicamentoId" type="xsd:long"/>
+          <xsd:element name="medicamentoNombre" type="xsd:string"/>
+          <xsd:element name="codigoLote" type="xsd:string"/>
+          <xsd:element name="fechaVencimiento" type="xsd:date"/>
+          <xsd:element name="stock" type="xsd:int"/>
+          <xsd:element name="costoUnitario" type="xsd:decimal"/>
+          <xsd:element name="precioVenta" type="xsd:decimal"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="SaleItemType">
+        <xsd:sequence>
+          <xsd:element name="loteId" type="xsd:long"/>
+          <xsd:element name="medicamentoId" type="xsd:long"/>
+          <xsd:element name="medicamentoNombre" type="xsd:string"/>
+          <xsd:element name="codigoLote" type="xsd:string"/>
+          <xsd:element name="cantidad" type="xsd:int"/>
+          <xsd:element name="precioUnitario" type="xsd:decimal"/>
+          <xsd:element name="subtotal" type="xsd:decimal"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="SaleItemsType">
+        <xsd:sequence>
+          <xsd:element name="item" type="tns:SaleItemType" minOccurs="0" maxOccurs="unbounded"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="SaleType">
+        <xsd:sequence>
+          <xsd:element name="id" type="xsd:long"/>
+          <xsd:element name="numero" type="xsd:string"/>
+          <xsd:element name="usuarioId" type="xsd:long"/>
+          <xsd:element name="usuarioNombre" type="xsd:string" minOccurs="0"/>
+          <xsd:element name="cantidadProductos" type="xsd:int" minOccurs="0"/>
+          <xsd:element name="fecha" type="xsd:dateTime"/>
+          <xsd:element name="total" type="xsd:decimal"/>
+          <xsd:element name="estado" type="tns:SaleStateType"/>
+          <xsd:element name="items" type="tns:SaleItemsType" minOccurs="0"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="MovementType">
+        <xsd:sequence>
+          <xsd:element name="id" type="xsd:long"/>
+          <xsd:element name="loteId" type="xsd:long"/>
+          <xsd:element name="ventaId" type="xsd:long" minOccurs="0"/>
+          <xsd:element name="usuarioId" type="xsd:long"/>
+          <xsd:element name="usuarioNombre" type="xsd:string"/>
+          <xsd:element name="usuarioRol" type="tns:RoleType"/>
+          <xsd:element name="tipo" type="tns:MovementKindType"/>
+          <xsd:element name="cantidad" type="xsd:int"/>
+          <xsd:element name="stockAntes" type="xsd:int"/>
+          <xsd:element name="stockDespues" type="xsd:int"/>
+          <xsd:element name="motivo" type="xsd:string"/>
+          <xsd:element name="fecha" type="xsd:dateTime"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="UserArrayType">
+        <xsd:sequence>
+          <xsd:element name="user" type="tns:UserType" minOccurs="0" maxOccurs="unbounded"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="MedicationArrayType">
+        <xsd:sequence>
+          <xsd:element name="medication" type="tns:MedicationType" minOccurs="0" maxOccurs="unbounded"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="BatchArrayType">
+        <xsd:sequence>
+          <xsd:element name="batch" type="tns:BatchType" minOccurs="0" maxOccurs="unbounded"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="MovementArrayType">
+        <xsd:sequence>
+          <xsd:element name="movement" type="tns:MovementType" minOccurs="0" maxOccurs="unbounded"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="SaleArrayType">
+        <xsd:sequence>
+          <xsd:element name="sale" type="tns:SaleType" minOccurs="0" maxOccurs="unbounded"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="SalePreviewAllocationType">
+        <xsd:sequence>
+          <xsd:element name="medicamentoId" type="xsd:long"/>
+          <xsd:element name="medicamentoNombre" type="xsd:string"/>
+          <xsd:element name="codigoLote" type="xsd:string"/>
+          <xsd:element name="fechaVencimiento" type="xsd:date"/>
+          <xsd:element name="cantidad" type="xsd:int"/>
+          <xsd:element name="existenciasDisponibles" type="xsd:int"/>
+          <xsd:element name="precioUnitario" type="xsd:decimal"/>
+          <xsd:element name="subtotal" type="xsd:decimal"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="SalePreviewAllocationArrayType">
+        <xsd:sequence>
+          <xsd:element name="allocation" type="tns:SalePreviewAllocationType" minOccurs="0" maxOccurs="unbounded"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="ExpirationAlertType">
+        <xsd:sequence>
+          <xsd:element name="batch" type="tns:BatchType"/>
+          <xsd:element name="diasParaVencer" type="xsd:int"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="ExpirationAlertArrayType">
+        <xsd:sequence>
+          <xsd:element name="alert" type="tns:ExpirationAlertType" minOccurs="0" maxOccurs="unbounded"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="SaleAlertType">
+        <xsd:sequence>
+          <xsd:element name="loteId" type="xsd:long"/>
+          <xsd:element name="medicamentoNombre" type="xsd:string"/>
+          <xsd:element name="codigoLote" type="xsd:string"/>
+          <xsd:element name="fechaVencimiento" type="xsd:date"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="SaleAlertArrayType">
+        <xsd:sequence>
+          <xsd:element name="alert" type="tns:SaleAlertType" minOccurs="0" maxOccurs="unbounded"/>
+        </xsd:sequence>
+      </xsd:complexType>
+
+      <xsd:complexType name="LoginRequestType">
+        <xsd:sequence>
+          <xsd:element name="correo" type="xsd:string"/>
+          <xsd:element name="password" type="xsd:string"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="LoginResponseType">
+        <xsd:sequence>
+          <xsd:element name="token" type="xsd:string"/>
+          <xsd:element name="expiresInSeconds" type="xsd:int"/>
+          <xsd:element name="user" type="tns:UserType"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="EmptyRequestType">
+        <xsd:sequence/>
+      </xsd:complexType>
+      <xsd:complexType name="ValidateSessionResponseType">
+        <xsd:sequence>
+          <xsd:element name="valid" type="xsd:boolean"/>
+          <xsd:element name="user" type="tns:UserType"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="PageRequestType">
+        <xsd:sequence>
+          <xsd:element name="limit" type="xsd:int" minOccurs="0"/>
+          <xsd:element name="offset" type="xsd:int" minOccurs="0"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="UserListRequestType">
+        <xsd:sequence>
+          <xsd:element name="rol" type="tns:RoleType" minOccurs="0"/>
+          <xsd:element name="activo" type="xsd:boolean" minOccurs="0"/>
+          <xsd:element name="limit" type="xsd:int" minOccurs="0"/>
+          <xsd:element name="offset" type="xsd:int" minOccurs="0"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="IdRequestType">
+        <xsd:sequence><xsd:element name="id" type="xsd:long"/></xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="CreateUserRequestType">
+        <xsd:sequence>
+          <xsd:element name="nombre" type="xsd:string"/>
+          <xsd:element name="correo" type="xsd:string"/>
+          <xsd:element name="password" type="xsd:string"/>
+          <xsd:element name="rol" type="tns:RoleType" minOccurs="0"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="UpdateUserRequestType">
+        <xsd:sequence>
+          <xsd:element name="id" type="xsd:long"/>
+          <xsd:element name="nombre" type="xsd:string" minOccurs="0"/>
+          <xsd:element name="correo" type="xsd:string" minOccurs="0"/>
+          <xsd:element name="password" type="xsd:string" minOccurs="0"/>
+          <xsd:element name="rol" type="tns:RoleType" minOccurs="0"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="PageResponseType">
+        <xsd:sequence>
+          <xsd:element name="total" type="xsd:int"/>
+          <xsd:element name="limit" type="xsd:int"/>
+          <xsd:element name="offset" type="xsd:int"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="UserListResponseType">
+        <xsd:sequence>
+          <xsd:element name="total" type="xsd:int"/>
+          <xsd:element name="limit" type="xsd:int"/>
+          <xsd:element name="offset" type="xsd:int"/>
+          <xsd:element name="users" type="tns:UserArrayType"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="UserResponseType">
+        <xsd:sequence><xsd:element name="user" type="tns:UserType"/></xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="DeactivateUserResponseType">
+        <xsd:sequence>
+          <xsd:element name="success" type="xsd:boolean"/>
+          <xsd:element name="user" type="tns:UserType"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="ActivateUserResponseType">
+        <xsd:sequence>
+          <xsd:element name="success" type="xsd:boolean"/>
+          <xsd:element name="user" type="tns:UserType"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="BooleanResponseType">
+        <xsd:sequence><xsd:element name="success" type="xsd:boolean"/></xsd:sequence>
+      </xsd:complexType>
+
+      <xsd:complexType name="MedicationListRequestType">
+        <xsd:sequence>
+          <xsd:element name="nombreOCodigo" type="xsd:string" minOccurs="0"/>
+          <xsd:element name="principioActivo" type="xsd:string" minOccurs="0"/>
+          <xsd:element name="activo" type="xsd:boolean" minOccurs="0"/>
+          <xsd:element name="limit" type="xsd:int" minOccurs="0"/>
+          <xsd:element name="offset" type="xsd:int" minOccurs="0"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="CreateMedicationRequestType">
+        <xsd:sequence>
+          <xsd:element name="codigo" type="xsd:string"/>
+          <xsd:element name="nombre" type="xsd:string"/>
+          <xsd:element name="principioActivo" type="xsd:string"/>
+          <xsd:element name="presentacion" type="xsd:string"/>
+          <xsd:element name="requiereFormula" type="xsd:boolean" minOccurs="0"/>
+          <xsd:element name="precioReferencia" type="xsd:decimal" minOccurs="0"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="UpdateMedicationRequestType">
+        <xsd:sequence>
+          <xsd:element name="id" type="xsd:long"/>
+          <xsd:element name="codigo" type="xsd:string" minOccurs="0"/>
+          <xsd:element name="nombre" type="xsd:string" minOccurs="0"/>
+          <xsd:element name="principioActivo" type="xsd:string" minOccurs="0"/>
+          <xsd:element name="presentacion" type="xsd:string" minOccurs="0"/>
+          <xsd:element name="requiereFormula" type="xsd:boolean" minOccurs="0"/>
+          <xsd:element name="precioReferencia" type="xsd:decimal" minOccurs="0"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="MedicationListResponseType">
+        <xsd:sequence>
+          <xsd:element name="total" type="xsd:int"/>
+          <xsd:element name="limit" type="xsd:int"/>
+          <xsd:element name="offset" type="xsd:int"/>
+          <xsd:element name="medications" type="tns:MedicationArrayType"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="MedicationResponseType">
+        <xsd:sequence><xsd:element name="medication" type="tns:MedicationType"/></xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="DeactivateMedicationResponseType">
+        <xsd:sequence>
+          <xsd:element name="success" type="xsd:boolean"/>
+          <xsd:element name="medication" type="tns:MedicationType"/>
+        </xsd:sequence>
+      </xsd:complexType>
+
+      <xsd:complexType name="BatchListRequestType">
+        <xsd:sequence>
+          <xsd:element name="medicamentoId" type="xsd:long" minOccurs="0"/>
+          <xsd:element name="codigoLote" type="xsd:string" minOccurs="0"/>
+          <xsd:element name="fechaVencimientoDesde" type="xsd:date" minOccurs="0"/>
+          <xsd:element name="fechaVencimientoHasta" type="xsd:date" minOccurs="0"/>
+          <xsd:element name="limit" type="xsd:int" minOccurs="0"/>
+          <xsd:element name="offset" type="xsd:int" minOccurs="0"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="CreateBatchRequestType">
+        <xsd:sequence>
+          <xsd:element name="medicamentoId" type="xsd:long"/>
+          <xsd:element name="codigoLote" type="xsd:string"/>
+          <xsd:element name="fechaVencimiento" type="xsd:date"/>
+          <xsd:element name="stock" type="xsd:int" minOccurs="0"/>
+          <xsd:element name="costoUnitario" type="xsd:decimal"/>
+          <xsd:element name="precioVenta" type="xsd:decimal"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="UpdateBatchRequestType">
+        <xsd:sequence>
+          <xsd:element name="id" type="xsd:long"/>
+          <xsd:element name="medicamentoId" type="xsd:long" minOccurs="0"/>
+          <xsd:element name="codigoLote" type="xsd:string" minOccurs="0"/>
+          <xsd:element name="fechaVencimiento" type="xsd:date" minOccurs="0"/>
+          <xsd:element name="stock" type="xsd:int" minOccurs="0"/>
+          <xsd:element name="costoUnitario" type="xsd:decimal" minOccurs="0"/>
+          <xsd:element name="precioVenta" type="xsd:decimal" minOccurs="0"/>
+          <xsd:element name="motivo" type="xsd:string" minOccurs="0"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="BatchListResponseType">
+        <xsd:sequence>
+          <xsd:element name="total" type="xsd:int"/>
+          <xsd:element name="limit" type="xsd:int"/>
+          <xsd:element name="offset" type="xsd:int"/>
+          <xsd:element name="batches" type="tns:BatchArrayType"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="BatchResponseType">
+        <xsd:sequence><xsd:element name="batch" type="tns:BatchType"/></xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="ExpirationAlertListResponseType">
+        <xsd:sequence>
+          <xsd:element name="total" type="xsd:int"/>
+          <xsd:element name="limit" type="xsd:int"/>
+          <xsd:element name="offset" type="xsd:int"/>
+          <xsd:element name="alerts" type="tns:ExpirationAlertArrayType"/>
+        </xsd:sequence>
+      </xsd:complexType>
+
+      <xsd:complexType name="MovementListRequestType">
+        <xsd:sequence>
+          <xsd:element name="loteId" type="xsd:long" minOccurs="0"/>
+          <xsd:element name="ventaId" type="xsd:long" minOccurs="0"/>
+          <xsd:element name="tipo" type="tns:MovementKindType" minOccurs="0"/>
+          <xsd:element name="fechaDesde" type="xsd:date" minOccurs="0"/>
+          <xsd:element name="fechaHasta" type="xsd:date" minOccurs="0"/>
+          <xsd:element name="limit" type="xsd:int" minOccurs="0"/>
+          <xsd:element name="offset" type="xsd:int" minOccurs="0"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="BatchMovementListRequestType">
+        <xsd:sequence>
+          <xsd:element name="loteId" type="xsd:long"/>
+          <xsd:element name="ventaId" type="xsd:long" minOccurs="0"/>
+          <xsd:element name="tipo" type="tns:MovementKindType" minOccurs="0"/>
+          <xsd:element name="fechaDesde" type="xsd:date" minOccurs="0"/>
+          <xsd:element name="fechaHasta" type="xsd:date" minOccurs="0"/>
+          <xsd:element name="limit" type="xsd:int" minOccurs="0"/>
+          <xsd:element name="offset" type="xsd:int" minOccurs="0"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="MovementListResponseType">
+        <xsd:sequence>
+          <xsd:element name="total" type="xsd:int"/>
+          <xsd:element name="limit" type="xsd:int"/>
+          <xsd:element name="offset" type="xsd:int"/>
+          <xsd:element name="movements" type="tns:MovementArrayType"/>
+        </xsd:sequence>
+      </xsd:complexType>
+
+      <xsd:complexType name="SaleListRequestType">
+        <xsd:sequence>
+          <xsd:element name="estado" type="tns:SaleStateType" minOccurs="0"/>
+          <xsd:element name="fechaDesde" type="xsd:date" minOccurs="0"/>
+          <xsd:element name="fechaHasta" type="xsd:date" minOccurs="0"/>
+          <xsd:element name="busqueda" type="xsd:string" minOccurs="0"/>
+          <xsd:element name="limit" type="xsd:int" minOccurs="0"/>
+          <xsd:element name="offset" type="xsd:int" minOccurs="0"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="SaleListResponseType">
+        <xsd:sequence>
+          <xsd:element name="total" type="xsd:int"/>
+          <xsd:element name="limit" type="xsd:int"/>
+          <xsd:element name="offset" type="xsd:int"/>
+          <xsd:element name="sales" type="tns:SaleArrayType"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="CreateSaleItemType">
+        <xsd:sequence>
+          <xsd:element name="medicamentoId" type="xsd:long"/>
+          <xsd:element name="cantidad" type="xsd:int"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="CreateSaleItemsType">
+        <xsd:sequence>
+          <xsd:element name="item" type="tns:CreateSaleItemType" minOccurs="1" maxOccurs="100"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="CreateSaleRequestType">
+        <xsd:sequence>
+          <xsd:element name="items" type="tns:CreateSaleItemsType"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="PreviewSaleRequestType">
+        <xsd:sequence>
+          <xsd:element name="items" type="tns:CreateSaleItemsType"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="SalePreviewResponseType">
+        <xsd:sequence>
+          <xsd:element name="total" type="xsd:decimal"/>
+          <xsd:element name="allocations" type="tns:SalePreviewAllocationArrayType"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="CreateSaleResponseType">
+        <xsd:sequence>
+          <xsd:element name="sale" type="tns:SaleType"/>
+          <xsd:element name="alerts" type="tns:SaleAlertArrayType"/>
+        </xsd:sequence>
+      </xsd:complexType>
+      <xsd:complexType name="SaleResponseType">
+        <xsd:sequence><xsd:element name="sale" type="tns:SaleType"/></xsd:sequence>
+      </xsd:complexType>
+
+      <xsd:element name="Login" type="tns:LoginRequestType"/>
+      <xsd:element name="LoginResponse" type="tns:LoginResponseType"/>
+      <xsd:element name="ValidateSession" type="tns:EmptyRequestType"/>
+      <xsd:element name="ValidateSessionResponse" type="tns:ValidateSessionResponseType"/>
+      <xsd:element name="ListUsers" type="tns:UserListRequestType"/>
+      <xsd:element name="ListUsersResponse" type="tns:UserListResponseType"/>
+      <xsd:element name="GetUser" type="tns:IdRequestType"/>
+      <xsd:element name="GetUserResponse" type="tns:UserResponseType"/>
+      <xsd:element name="CreateUser" type="tns:CreateUserRequestType"/>
+      <xsd:element name="CreateUserResponse" type="tns:UserResponseType"/>
+      <xsd:element name="UpdateUser" type="tns:UpdateUserRequestType"/>
+      <xsd:element name="UpdateUserResponse" type="tns:UserResponseType"/>
+      <xsd:element name="DeactivateUser" type="tns:IdRequestType"/>
+      <xsd:element name="DeactivateUserResponse" type="tns:DeactivateUserResponseType"/>
+      <xsd:element name="ActivateUser" type="tns:IdRequestType"/>
+      <xsd:element name="ActivateUserResponse" type="tns:ActivateUserResponseType"/>
+
+      <xsd:element name="ListMedications" type="tns:MedicationListRequestType"/>
+      <xsd:element name="ListMedicationsResponse" type="tns:MedicationListResponseType"/>
+      <xsd:element name="GetMedication" type="tns:IdRequestType"/>
+      <xsd:element name="GetMedicationResponse" type="tns:MedicationResponseType"/>
+      <xsd:element name="CreateMedication" type="tns:CreateMedicationRequestType"/>
+      <xsd:element name="CreateMedicationResponse" type="tns:MedicationResponseType"/>
+      <xsd:element name="UpdateMedication" type="tns:UpdateMedicationRequestType"/>
+      <xsd:element name="UpdateMedicationResponse" type="tns:MedicationResponseType"/>
+      <xsd:element name="DeactivateMedication" type="tns:IdRequestType"/>
+      <xsd:element name="DeactivateMedicationResponse" type="tns:DeactivateMedicationResponseType"/>
+
+      <xsd:element name="ListBatches" type="tns:BatchListRequestType"/>
+      <xsd:element name="ListBatchesResponse" type="tns:BatchListResponseType"/>
+      <xsd:element name="GetBatch" type="tns:IdRequestType"/>
+      <xsd:element name="GetBatchResponse" type="tns:BatchResponseType"/>
+      <xsd:element name="CreateBatch" type="tns:CreateBatchRequestType"/>
+      <xsd:element name="CreateBatchResponse" type="tns:BatchResponseType"/>
+      <xsd:element name="UpdateBatch" type="tns:UpdateBatchRequestType"/>
+      <xsd:element name="UpdateBatchResponse" type="tns:BatchResponseType"/>
+      <xsd:element name="DeleteBatch" type="tns:IdRequestType"/>
+      <xsd:element name="DeleteBatchResponse" type="tns:BooleanResponseType"/>
+      <xsd:element name="ListExpirationAlerts" type="tns:PageRequestType"/>
+      <xsd:element name="ListExpirationAlertsResponse" type="tns:ExpirationAlertListResponseType"/>
+
+      <xsd:element name="ListInventoryMovements" type="tns:MovementListRequestType"/>
+      <xsd:element name="ListInventoryMovementsResponse" type="tns:MovementListResponseType"/>
+      <xsd:element name="ListInventoryMovementsByBatch" type="tns:BatchMovementListRequestType"/>
+      <xsd:element name="ListInventoryMovementsByBatchResponse" type="tns:MovementListResponseType"/>
+
+      <xsd:element name="ListSales" type="tns:SaleListRequestType"/>
+      <xsd:element name="ListSalesResponse" type="tns:SaleListResponseType"/>
+      <xsd:element name="GetSale" type="tns:IdRequestType"/>
+      <xsd:element name="GetSaleResponse" type="tns:SaleResponseType"/>
+      <xsd:element name="PreviewSale" type="tns:PreviewSaleRequestType"/>
+      <xsd:element name="PreviewSaleResponse" type="tns:SalePreviewResponseType"/>
+      <xsd:element name="CreateSale" type="tns:CreateSaleRequestType"/>
+      <xsd:element name="CreateSaleResponse" type="tns:CreateSaleResponseType"/>
+      <xsd:element name="ReverseSale" type="tns:IdRequestType"/>
+      <xsd:element name="ReverseSaleResponse" type="tns:SaleResponseType"/>
+    </xsd:schema>
+  </types>
+
+  <message name="AuthHeaderMessage">
+    <part name="header" element="tns:AuthHeader"/>
+  </message>
+  <message name="LoginInput"><part name="parameters" element="tns:Login"/></message>
+  <message name="LoginOutput"><part name="parameters" element="tns:LoginResponse"/></message>
+  <message name="ValidateSessionInput"><part name="parameters" element="tns:ValidateSession"/></message>
+  <message name="ValidateSessionOutput"><part name="parameters" element="tns:ValidateSessionResponse"/></message>
+  <message name="ListUsersInput"><part name="parameters" element="tns:ListUsers"/></message>
+  <message name="ListUsersOutput"><part name="parameters" element="tns:ListUsersResponse"/></message>
+  <message name="GetUserInput"><part name="parameters" element="tns:GetUser"/></message>
+  <message name="GetUserOutput"><part name="parameters" element="tns:GetUserResponse"/></message>
+  <message name="CreateUserInput"><part name="parameters" element="tns:CreateUser"/></message>
+  <message name="CreateUserOutput"><part name="parameters" element="tns:CreateUserResponse"/></message>
+  <message name="UpdateUserInput"><part name="parameters" element="tns:UpdateUser"/></message>
+  <message name="UpdateUserOutput"><part name="parameters" element="tns:UpdateUserResponse"/></message>
+  <message name="DeactivateUserInput"><part name="parameters" element="tns:DeactivateUser"/></message>
+  <message name="DeactivateUserOutput"><part name="parameters" element="tns:DeactivateUserResponse"/></message>
+  <message name="ActivateUserInput"><part name="parameters" element="tns:ActivateUser"/></message>
+  <message name="ActivateUserOutput"><part name="parameters" element="tns:ActivateUserResponse"/></message>
+  <message name="ListMedicationsInput"><part name="parameters" element="tns:ListMedications"/></message>
+  <message name="ListMedicationsOutput"><part name="parameters" element="tns:ListMedicationsResponse"/></message>
+  <message name="GetMedicationInput"><part name="parameters" element="tns:GetMedication"/></message>
+  <message name="GetMedicationOutput"><part name="parameters" element="tns:GetMedicationResponse"/></message>
+  <message name="CreateMedicationInput"><part name="parameters" element="tns:CreateMedication"/></message>
+  <message name="CreateMedicationOutput"><part name="parameters" element="tns:CreateMedicationResponse"/></message>
+  <message name="UpdateMedicationInput"><part name="parameters" element="tns:UpdateMedication"/></message>
+  <message name="UpdateMedicationOutput"><part name="parameters" element="tns:UpdateMedicationResponse"/></message>
+  <message name="DeactivateMedicationInput"><part name="parameters" element="tns:DeactivateMedication"/></message>
+  <message name="DeactivateMedicationOutput"><part name="parameters" element="tns:DeactivateMedicationResponse"/></message>
+  <message name="ListBatchesInput"><part name="parameters" element="tns:ListBatches"/></message>
+  <message name="ListBatchesOutput"><part name="parameters" element="tns:ListBatchesResponse"/></message>
+  <message name="GetBatchInput"><part name="parameters" element="tns:GetBatch"/></message>
+  <message name="GetBatchOutput"><part name="parameters" element="tns:GetBatchResponse"/></message>
+  <message name="CreateBatchInput"><part name="parameters" element="tns:CreateBatch"/></message>
+  <message name="CreateBatchOutput"><part name="parameters" element="tns:CreateBatchResponse"/></message>
+  <message name="UpdateBatchInput"><part name="parameters" element="tns:UpdateBatch"/></message>
+  <message name="UpdateBatchOutput"><part name="parameters" element="tns:UpdateBatchResponse"/></message>
+  <message name="DeleteBatchInput"><part name="parameters" element="tns:DeleteBatch"/></message>
+  <message name="DeleteBatchOutput"><part name="parameters" element="tns:DeleteBatchResponse"/></message>
+  <message name="ListExpirationAlertsInput"><part name="parameters" element="tns:ListExpirationAlerts"/></message>
+  <message name="ListExpirationAlertsOutput"><part name="parameters" element="tns:ListExpirationAlertsResponse"/></message>
+  <message name="ListInventoryMovementsInput"><part name="parameters" element="tns:ListInventoryMovements"/></message>
+  <message name="ListInventoryMovementsOutput"><part name="parameters" element="tns:ListInventoryMovementsResponse"/></message>
+  <message name="ListInventoryMovementsByBatchInput"><part name="parameters" element="tns:ListInventoryMovementsByBatch"/></message>
+  <message name="ListInventoryMovementsByBatchOutput"><part name="parameters" element="tns:ListInventoryMovementsByBatchResponse"/></message>
+  <message name="ListSalesInput"><part name="parameters" element="tns:ListSales"/></message>
+  <message name="ListSalesOutput"><part name="parameters" element="tns:ListSalesResponse"/></message>
+  <message name="GetSaleInput"><part name="parameters" element="tns:GetSale"/></message>
+  <message name="GetSaleOutput"><part name="parameters" element="tns:GetSaleResponse"/></message>
+  <message name="PreviewSaleInput"><part name="parameters" element="tns:PreviewSale"/></message>
+  <message name="PreviewSaleOutput"><part name="parameters" element="tns:PreviewSaleResponse"/></message>
+  <message name="CreateSaleInput"><part name="parameters" element="tns:CreateSale"/></message>
+  <message name="CreateSaleOutput"><part name="parameters" element="tns:CreateSaleResponse"/></message>
+  <message name="ReverseSaleInput"><part name="parameters" element="tns:ReverseSale"/></message>
+  <message name="ReverseSaleOutput"><part name="parameters" element="tns:ReverseSaleResponse"/></message>
+
+  <portType name="FarmaciaPortType">
+    <operation name="Login"><input message="tns:LoginInput"/><output message="tns:LoginOutput"/></operation>
+    <operation name="ValidateSession"><input message="tns:ValidateSessionInput"/><output message="tns:ValidateSessionOutput"/></operation>
+    <operation name="ListUsers"><input message="tns:ListUsersInput"/><output message="tns:ListUsersOutput"/></operation>
+    <operation name="GetUser"><input message="tns:GetUserInput"/><output message="tns:GetUserOutput"/></operation>
+    <operation name="CreateUser"><input message="tns:CreateUserInput"/><output message="tns:CreateUserOutput"/></operation>
+    <operation name="UpdateUser"><input message="tns:UpdateUserInput"/><output message="tns:UpdateUserOutput"/></operation>
+    <operation name="DeactivateUser"><input message="tns:DeactivateUserInput"/><output message="tns:DeactivateUserOutput"/></operation>
+    <operation name="ActivateUser"><input message="tns:ActivateUserInput"/><output message="tns:ActivateUserOutput"/></operation>
+    <operation name="ListMedications"><input message="tns:ListMedicationsInput"/><output message="tns:ListMedicationsOutput"/></operation>
+    <operation name="GetMedication"><input message="tns:GetMedicationInput"/><output message="tns:GetMedicationOutput"/></operation>
+    <operation name="CreateMedication"><input message="tns:CreateMedicationInput"/><output message="tns:CreateMedicationOutput"/></operation>
+    <operation name="UpdateMedication"><input message="tns:UpdateMedicationInput"/><output message="tns:UpdateMedicationOutput"/></operation>
+    <operation name="DeactivateMedication"><input message="tns:DeactivateMedicationInput"/><output message="tns:DeactivateMedicationOutput"/></operation>
+    <operation name="ListBatches"><input message="tns:ListBatchesInput"/><output message="tns:ListBatchesOutput"/></operation>
+    <operation name="GetBatch"><input message="tns:GetBatchInput"/><output message="tns:GetBatchOutput"/></operation>
+    <operation name="CreateBatch"><input message="tns:CreateBatchInput"/><output message="tns:CreateBatchOutput"/></operation>
+    <operation name="UpdateBatch"><input message="tns:UpdateBatchInput"/><output message="tns:UpdateBatchOutput"/></operation>
+    <operation name="DeleteBatch"><input message="tns:DeleteBatchInput"/><output message="tns:DeleteBatchOutput"/></operation>
+    <operation name="ListExpirationAlerts"><input message="tns:ListExpirationAlertsInput"/><output message="tns:ListExpirationAlertsOutput"/></operation>
+    <operation name="ListInventoryMovements"><input message="tns:ListInventoryMovementsInput"/><output message="tns:ListInventoryMovementsOutput"/></operation>
+    <operation name="ListInventoryMovementsByBatch"><input message="tns:ListInventoryMovementsByBatchInput"/><output message="tns:ListInventoryMovementsByBatchOutput"/></operation>
+    <operation name="ListSales"><input message="tns:ListSalesInput"/><output message="tns:ListSalesOutput"/></operation>
+    <operation name="GetSale"><input message="tns:GetSaleInput"/><output message="tns:GetSaleOutput"/></operation>
+    <operation name="PreviewSale"><input message="tns:PreviewSaleInput"/><output message="tns:PreviewSaleOutput"/></operation>
+    <operation name="CreateSale"><input message="tns:CreateSaleInput"/><output message="tns:CreateSaleOutput"/></operation>
+    <operation name="ReverseSale"><input message="tns:ReverseSaleInput"/><output message="tns:ReverseSaleOutput"/></operation>
+  </portType>
+
+  <binding name="FarmaciaBinding" type="tns:FarmaciaPortType">
+    <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+    <operation name="Login"><soap:operation soapAction="urn:farmacia:v1#Login"/><input><soap:body use="literal"/><soap:header message="tns:AuthHeaderMessage" part="header" use="literal"/></input><output><soap:body use="literal"/></output></operation>
+    <operation name="ValidateSession"><soap:operation soapAction="urn:farmacia:v1#ValidateSession"/><input><soap:body use="literal"/><soap:header message="tns:AuthHeaderMessage" part="header" use="literal"/></input><output><soap:body use="literal"/></output></operation>
+    <operation name="ListUsers"><soap:operation soapAction="urn:farmacia:v1#ListUsers"/><input><soap:body use="literal"/><soap:header message="tns:AuthHeaderMessage" part="header" use="literal"/></input><output><soap:body use="literal"/></output></operation>
+    <operation name="GetUser"><soap:operation soapAction="urn:farmacia:v1#GetUser"/><input><soap:body use="literal"/><soap:header message="tns:AuthHeaderMessage" part="header" use="literal"/></input><output><soap:body use="literal"/></output></operation>
+    <operation name="CreateUser"><soap:operation soapAction="urn:farmacia:v1#CreateUser"/><input><soap:body use="literal"/><soap:header message="tns:AuthHeaderMessage" part="header" use="literal"/></input><output><soap:body use="literal"/></output></operation>
+    <operation name="UpdateUser"><soap:operation soapAction="urn:farmacia:v1#UpdateUser"/><input><soap:body use="literal"/><soap:header message="tns:AuthHeaderMessage" part="header" use="literal"/></input><output><soap:body use="literal"/></output></operation>
+    <operation name="DeactivateUser"><soap:operation soapAction="urn:farmacia:v1#DeactivateUser"/><input><soap:body use="literal"/><soap:header message="tns:AuthHeaderMessage" part="header" use="literal"/></input><output><soap:body use="literal"/></output></operation>
+    <operation name="ActivateUser"><soap:operation soapAction="urn:farmacia:v1#ActivateUser"/><input><soap:body use="literal"/><soap:header message="tns:AuthHeaderMessage" part="header" use="literal"/></input><output><soap:body use="literal"/></output></operation>
+    <operation name="ListMedications"><soap:operation soapAction="urn:farmacia:v1#ListMedications"/><input><soap:body use="literal"/><soap:header message="tns:AuthHeaderMessage" part="header" use="literal"/></input><output><soap:body use="literal"/></output></operation>
+    <operation name="GetMedication"><soap:operation soapAction="urn:farmacia:v1#GetMedication"/><input><soap:body use="literal"/><soap:header message="tns:AuthHeaderMessage" part="header" use="literal"/></input><output><soap:body use="literal"/></output></operation>
+    <operation name="CreateMedication"><soap:operation soapAction="urn:farmacia:v1#CreateMedication"/><input><soap:body use="literal"/><soap:header message="tns:AuthHeaderMessage" part="header" use="literal"/></input><output><soap:body use="literal"/></output></operation>
+    <operation name="UpdateMedication"><soap:operation soapAction="urn:farmacia:v1#UpdateMedication"/><input><soap:body use="literal"/><soap:header message="tns:AuthHeaderMessage" part="header" use="literal"/></input><output><soap:body use="literal"/></output></operation>
+    <operation name="DeactivateMedication"><soap:operation soapAction="urn:farmacia:v1#DeactivateMedication"/><input><soap:body use="literal"/><soap:header message="tns:AuthHeaderMessage" part="header" use="literal"/></input><output><soap:body use="literal"/></output></operation>
+    <operation name="ListBatches"><soap:operation soapAction="urn:farmacia:v1#ListBatches"/><input><soap:body use="literal"/><soap:header message="tns:AuthHeaderMessage" part="header" use="literal"/></input><output><soap:body use="literal"/></output></operation>
+    <operation name="GetBatch"><soap:operation soapAction="urn:farmacia:v1#GetBatch"/><input><soap:body use="literal"/><soap:header message="tns:AuthHeaderMessage" part="header" use="literal"/></input><output><soap:body use="literal"/></output></operation>
+    <operation name="CreateBatch"><soap:operation soapAction="urn:farmacia:v1#CreateBatch"/><input><soap:body use="literal"/><soap:header message="tns:AuthHeaderMessage" part="header" use="literal"/></input><output><soap:body use="literal"/></output></operation>
+    <operation name="UpdateBatch"><soap:operation soapAction="urn:farmacia:v1#UpdateBatch"/><input><soap:body use="literal"/><soap:header message="tns:AuthHeaderMessage" part="header" use="literal"/></input><output><soap:body use="literal"/></output></operation>
+    <operation name="DeleteBatch"><soap:operation soapAction="urn:farmacia:v1#DeleteBatch"/><input><soap:body use="literal"/><soap:header message="tns:AuthHeaderMessage" part="header" use="literal"/></input><output><soap:body use="literal"/></output></operation>
+    <operation name="ListExpirationAlerts"><soap:operation soapAction="urn:farmacia:v1#ListExpirationAlerts"/><input><soap:body use="literal"/><soap:header message="tns:AuthHeaderMessage" part="header" use="literal"/></input><output><soap:body use="literal"/></output></operation>
+    <operation name="ListInventoryMovements"><soap:operation soapAction="urn:farmacia:v1#ListInventoryMovements"/><input><soap:body use="literal"/><soap:header message="tns:AuthHeaderMessage" part="header" use="literal"/></input><output><soap:body use="literal"/></output></operation>
+    <operation name="ListInventoryMovementsByBatch"><soap:operation soapAction="urn:farmacia:v1#ListInventoryMovementsByBatch"/><input><soap:body use="literal"/><soap:header message="tns:AuthHeaderMessage" part="header" use="literal"/></input><output><soap:body use="literal"/></output></operation>
+    <operation name="ListSales"><soap:operation soapAction="urn:farmacia:v1#ListSales"/><input><soap:body use="literal"/><soap:header message="tns:AuthHeaderMessage" part="header" use="literal"/></input><output><soap:body use="literal"/></output></operation>
+    <operation name="GetSale"><soap:operation soapAction="urn:farmacia:v1#GetSale"/><input><soap:body use="literal"/><soap:header message="tns:AuthHeaderMessage" part="header" use="literal"/></input><output><soap:body use="literal"/></output></operation>
+    <operation name="PreviewSale"><soap:operation soapAction="urn:farmacia:v1#PreviewSale"/><input><soap:body use="literal"/><soap:header message="tns:AuthHeaderMessage" part="header" use="literal"/></input><output><soap:body use="literal"/></output></operation>
+    <operation name="CreateSale"><soap:operation soapAction="urn:farmacia:v1#CreateSale"/><input><soap:body use="literal"/><soap:header message="tns:AuthHeaderMessage" part="header" use="literal"/></input><output><soap:body use="literal"/></output></operation>
+    <operation name="ReverseSale"><soap:operation soapAction="urn:farmacia:v1#ReverseSale"/><input><soap:body use="literal"/><soap:header message="tns:AuthHeaderMessage" part="header" use="literal"/></input><output><soap:body use="literal"/></output></operation>
+  </binding>
+  <service name="FarmaciaService">
+    <port name="FarmaciaPort" binding="tns:FarmaciaBinding">
+      <soap:address location="http://localhost:4000/soap"/>
+    </port>
+  </service>
+</definitions>

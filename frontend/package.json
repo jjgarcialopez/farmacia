@@ -1,0 +1,12 @@
+{
+  "name": "farmasalud-popayan-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "sweetalert2": "^11.26.25"
+  }
+}
