@@ -1,5 +1,5 @@
 window.APP_CONFIG = Object.freeze({
-  apiUrl: "http://localhost:4000/soap",
-  healthUrl: "http://localhost:4000/health",
+  apiUrl: "https://farmacia-t2ej.onrender.com/soap",
+  healthUrl: "https://farmacia-t2ej.onrender.com/health",
   sessionWarningMinutes: 5,
 });

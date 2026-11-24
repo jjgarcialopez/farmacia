@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const frontendDir = path.dirname(fileURLToPath(import.meta.url));
-const port = Number(process.env.FRONTEND_PORT || 5173);
+const port = Number(process.env.PORT || process.env.FRONTEND_PORT || 5173);
 const contentTypes = {
   ".css": "text/css; charset=utf-8",
   ".html": "text/html; charset=utf-8",
@@ -56,6 +56,6 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(port, "localhost", () => {
-  console.log(`FarmaSalud Popayán disponible en http://localhost:${port}`);
+server.listen(port, () => {
+  console.log(`FarmaSalud Popayán disponible en el puerto ${port}`);
 });

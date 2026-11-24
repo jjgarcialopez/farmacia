@@ -21,10 +21,19 @@ Interfaz web independiente para el backend SOAP de farmacia. El frontend vive en
 
 4. Abre `http://localhost:5173` e inicia sesión con una cuenta creada en el backend. El frontend se conecta internamente con `http://localhost:4000/soap`.
 
+## Publicar en Render
+
+El frontend está preparado para desplegarse como un servicio web de Node.js independiente:
+
+1. Sube los cambios del proyecto a GitHub.
+2. En Render, crea un **Web Service** desde el mismo repositorio, con **Root Directory** `frontend`, **Build Command** `npm install` y **Start Command** `npm start`. Usa la misma región que el backend.
+3. Cuando Render asigne una URL al frontend, configura `CORS_ORIGIN` en el servicio del backend con ese origen exacto, sin `/` al final; por ejemplo, `https://farmacia-frontend.onrender.com`.
+4. Si cambia la URL pública del backend, actualiza `apiUrl` y `healthUrl` en `config.js` y vuelve a subir los cambios.
+
 ## Módulos
 
 - **Resumen:** indicadores de medicamentos, existencias, vencimientos y ventas recientes.
-- **Medicamentos:** consulta y búsqueda por nombre, código o principio activo, detalle, creación y edición; la desactivación está reservada al administrador.
+- **Medicamentos:** consulta y búsqueda por nombre, código o principio activo, detalle, creación, edición y activación/desactivación; estas acciones están reservadas al administrador.
 - **Inventario:** consulta y detalle de lotes, registro y edición, ajustes de existencias con motivo, y eliminación de lotes sin historial (administrador).
 - **Movimientos:** filtros por lote, venta, tipo y fechas, con nombre y rol del usuario que realizó cada movimiento; disponible para administrador, operador y auditor.
 - **Ventas:** historial con búsqueda por venta, usuario o medicamento; filtros por estado y fechas con periodos rápidos; indicadores comparables con el periodo anterior; cotización de productos, cantidades, precios por lote y stock antes de confirmar; comprobante imprimible; y reversión de ventas confirmadas.
