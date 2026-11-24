@@ -38,7 +38,6 @@ export function mapUser(row) {
   return {
     id: String(row.id),
     nombre: row.nombre,
-    usuario: row.usuario,
     correo: row.correo,
     rol: row.rol,
     activo: row.activo,
@@ -52,11 +51,9 @@ export function mapMedication(row) {
     codigo: row.codigo,
     nombre: row.nombre,
     principioActivo: row.principio_activo,
-    concentracion: row.concentracion ?? "",
     presentacion: row.presentacion,
     requiereFormula: row.requiere_formula,
     precioReferencia: row.precio_referencia,
-    precioVenta: row.precio_venta ?? row.precio_referencia ?? "0.00",
     activo: row.activo,
     creadoEn: row.creado_en,
   };
@@ -68,14 +65,10 @@ export function mapBatch(row) {
     medicamentoId: String(row.medicamento_id),
     medicamentoNombre: row.medicamento_nombre,
     codigoLote: row.codigo_lote,
-    fechaFabricacion: row.fecha_fabricacion instanceof Date
-      ? row.fecha_fabricacion.toISOString().slice(0, 10)
-      : row.fecha_fabricacion,
     fechaVencimiento: row.fecha_vencimiento instanceof Date
       ? row.fecha_vencimiento.toISOString().slice(0, 10)
       : row.fecha_vencimiento,
     stock: row.stock,
-    cantidadInicial: row.cantidad_inicial,
     costoUnitario: row.costo_unitario,
     precioVenta: row.precio_venta,
   };

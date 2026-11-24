@@ -3,7 +3,7 @@ import { AppError } from "../errors.js";
 import { requireRoles } from "../auth.js";
 import { mapMovement, operation, pageQuery } from "./common.js";
 
-const READ_ROLES = ["administrador", "farmaceutico"];
+const READ_ROLES = ["administrador", "operador", "auditor"];
 const SELECT_MOVEMENT = `i.id, i.lote_id, i.venta_id, i.usuario_id,
   u.nombre AS usuario_nombre, u.rol AS usuario_rol, i.tipo, i.cantidad,
   i.stock_antes, i.stock_despues, i.motivo, i.fecha`;

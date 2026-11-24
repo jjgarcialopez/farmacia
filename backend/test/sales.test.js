@@ -8,9 +8,9 @@ const { createSalesOperations } = await import("../src/services/sales.js");
 
 const operator = {
   id: "7",
-  nombre: "Vendedor",
-  correo: "vendedor@farmacia.com",
-  rol: "vendedor",
+  nombre: "Operador",
+  correo: "operador@farmacia.com",
+  rol: "operador",
   activo: true,
 };
 const headers = {
@@ -34,7 +34,7 @@ const batches = [
   {
     id: "12",
     medicamento_id: "21",
-    medicamento_nombre: "AcetaminofÃ©n",
+    medicamento_nombre: "Acetaminofén",
     codigo_lote: "LOT-B",
     fecha_vencimiento: "2027-06-30",
     stock: 5,
@@ -44,7 +44,7 @@ const batches = [
   {
     id: "11",
     medicamento_id: "21",
-    medicamento_nombre: "AcetaminofÃ©n",
+    medicamento_nombre: "Acetaminofén",
     codigo_lote: "LOT-A",
     fecha_vencimiento: "2027-03-31",
     stock: 2,
@@ -102,7 +102,7 @@ test("creates a sale from the same FEFO preview allocations", async () => {
     id: "101",
     numero: "V-2026-101",
     usuario_id: "7",
-    usuario_nombre: "Vendedor",
+    usuario_nombre: "Operador",
     fecha: new Date("2026-11-23T12:00:00.000Z"),
     total: "5.00",
     estado: "confirmada",
@@ -176,7 +176,7 @@ test("gets sale detail with medication names", async () => {
             id: "101",
             numero: "V-2026-101",
             usuario_id: "7",
-            usuario_nombre: "Vendedor",
+            usuario_nombre: "Operador",
             fecha: new Date("2026-11-23T12:00:00.000Z"),
             total: "5.00",
             estado: "confirmada",
@@ -189,7 +189,7 @@ test("gets sale detail with medication names", async () => {
           rows: [{
             lote_id: "11",
             medicamento_id: "21",
-            medicamento_nombre: "AcetaminofÃ©n",
+            medicamento_nombre: "Acetaminofén",
             codigo_lote: "LOT-A",
             cantidad: 2,
             precio_unitario: "1.00",
@@ -204,7 +204,7 @@ test("gets sale detail with medication names", async () => {
   const getSale = createSalesOperations({ pool }).GetSale;
   const result = await getSale({ id: "101" }, null, headers);
 
-  assert.equal(result.sale.items.item[0].medicamentoNombre, "AcetaminofÃ©n");
+  assert.equal(result.sale.items.item[0].medicamentoNombre, "Acetaminofén");
   assert.equal(result.sale.items.item[0].codigoLote, "LOT-A");
 });
 
@@ -223,7 +223,7 @@ test("searches sales by number, cashier, and product while returning summary fie
             id: "101",
             numero: "V-2026-101",
             usuario_id: "7",
-            usuario_nombre: "Vendedor",
+            usuario_nombre: "Operador",
             cantidad_productos: 2,
             fecha: new Date("2026-11-23T12:00:00.000Z"),
             total: "25.00",
@@ -237,7 +237,7 @@ test("searches sales by number, cashier, and product while returning summary fie
   };
   const listSales = createSalesOperations({ pool }).ListSales;
   const result = await listSales({
-    busqueda: "AcetaminofÃ©n",
+    busqueda: "Acetaminofén",
     fechaDesde: "2026-11-01",
     fechaHasta: "2026-11-30",
     limit: 20,
@@ -245,9 +245,9 @@ test("searches sales by number, cashier, and product while returning summary fie
   }, null, headers);
 
   assert.equal(result.total, 1);
-  assert.equal(result.sales.sale[0].usuarioNombre, "Vendedor");
+  assert.equal(result.sales.sale[0].usuarioNombre, "Operador");
   assert.equal(result.sales.sale[0].cantidadProductos, 2);
   assert.ok(queries.every(({ sql }) => sql.includes("ILIKE")));
   assert.ok(queries.some(({ sql }) => sql.includes("sm.principio_activo ILIKE")));
-  assert.ok(queries.every(({ values }) => values.includes("%AcetaminofÃ©n%")));
+  assert.ok(queries.every(({ values }) => values.includes("%Acetaminofén%")));
 });

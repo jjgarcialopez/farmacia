@@ -16,12 +16,11 @@ import {
   notFound,
 } from "./common.js";
 
-const READ_ROLES = ["administrador", "farmaceutico", "vendedor"];
-const WRITE_ROLES = ["administrador", "farmaceutico"];
+const READ_ROLES = ["administrador", "operador", "consulta", "auditor"];
+const WRITE_ROLES = ["administrador", "operador"];
 const BATCH_FROM = "lotes l JOIN medicamentos m ON m.id = l.medicamento_id";
 const BATCH_SELECT = `l.id, l.medicamento_id, m.nombre AS medicamento_nombre,
-  l.codigo_lote, l.fecha_fabricacion, l.fecha_vencimiento, l.cantidad_inicial,
-  l.stock, l.costo_unitario, l.precio_venta`;
+  l.codigo_lote, l.fecha_vencimiento, l.stock, l.costo_unitario, l.precio_venta`;
 
 async function ensureActiveMedication(db, medicationId) {
   const result = await db.query(
@@ -88,9 +87,6 @@ export function createBatchOperations({ pool, withTransaction }) {
       const user = await requireRoles(headers, pool, WRITE_ROLES);
       const medicamentoId = positiveId(args.medicamentoId, "medicamentoId");
       const codigoLote = text(args.codigoLote, "codigoLote", 80);
-      const fechaFabricacion = args.fechaFabricacion === undefined
-        ? undefined
-        : isoDate(args.fechaFabricacion, "fechaFabricacion");
       const fechaVencimiento = isoDate(args.fechaVencimiento, "fechaVencimiento");
       const stock = args.stock === undefined ? 0 : integer(args.stock, "stock");
       const costoUnitario = money(args.costoUnitario, "costoUnitario");
@@ -100,12 +96,10 @@ export function createBatchOperations({ pool, withTransaction }) {
         await ensureActiveMedication(client, medicamentoId);
         const inserted = await client.query(
           `INSERT INTO lotes
-             (medicamento_id, codigo_lote, fecha_fabricacion, fecha_vencimiento,
-              cantidad_inicial, stock, costo_unitario, precio_venta)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            (medicamento_id, codigo_lote, fecha_vencimiento, stock, costo_unitario, precio_venta)
+           VALUES ($1, $2, $3, $4, $5, $6)
            RETURNING id`,
-           [medicamentoId, codigoLote, fechaFabricacion, fechaVencimiento,
-            stock, stock, costoUnitario, precioVenta],
+          [medicamentoId, codigoLote, fechaVencimiento, stock, costoUnitario, precioVenta],
         );
         const id = inserted.rows[0].id;
         if (stock > 0) {
@@ -195,7 +189,7 @@ export function createBatchOperations({ pool, withTransaction }) {
     }),
 
     DeleteBatch: operation("DeleteBatch", async (args, headers) => {
-      await requireRoles(headers, pool, WRITE_ROLES);
+      await requireRoles(headers, pool, ["administrador"]);
       const id = positiveId(args.id);
       await withTransaction(async (client) => {
         const existing = await client.query("SELECT id FROM lotes WHERE id = $1 FOR UPDATE", [id]);

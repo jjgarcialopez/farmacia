@@ -62,17 +62,17 @@ El esquema acordado no incluye auditoría, por lo que tampoco se exponen operaci
 </soapenv:Header>
 ```
 
-Los roles son `administrador`, `farmaceutico` y `vendedor`. El backend verifica el token y consulta el estado y rol actuales del usuario en PostgreSQL en cada operación protegida. Los usuarios inactivos no pueden iniciar ni mantener sesión. Las contraseñas nuevas requieren al menos 12 caracteres y se almacenan con bcrypt.
+Los roles son `administrador`, `operador`, `consulta` y `auditor`. El backend verifica el token y consulta el estado y rol actuales del usuario en PostgreSQL en cada operación protegida. Los usuarios inactivos no pueden iniciar ni mantener sesión. Las contraseñas nuevas requieren al menos 12 caracteres y se almacenan con bcrypt. Las cuentas creadas o cuyo correo se actualice mediante la gestión de usuarios deben usar el dominio corporativo `@farmacia.com`.
 
-| Operación | administrador | farmaceutico | vendedor |
-|---|---:|---:|---:|
-| Gestión completa de usuarios | Sí | No | No |
-| Consultar medicamentos y lotes | Sí | Sí | Sí |
-| Gestionar medicamentos y lotes | Sí | Sí | No |
-| Consultar existencias y movimientos | Sí | Sí | No |
-| Consultar ventas | Todas | Todas | Solo las propias |
-| Crear ventas | Sí | No | Sí |
-| Revertir ventas | Sí | No | No |
+| Operación | administrador | operador | consulta | auditor |
+|---|---:|---:|---:|---:|
+| Consultar medicamentos y lotes | Sí | Sí | Sí | Sí |
+| Crear o actualizar medicamentos y lotes | Sí | Sí | No | No |
+| Activar o desactivar medicamentos / eliminar lotes | Sí | No | No | No |
+| Consultar inventario | Sí | Sí | No | Sí |
+| Consultar ventas | Sí | Sí | Sí | Sí |
+| Crear o revertir ventas | Sí | Sí | No | No |
+| Gestionar usuarios | Sí | No | No | No |
 
 ## Operaciones SOAP
 

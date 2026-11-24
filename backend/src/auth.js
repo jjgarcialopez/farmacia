@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { config } from "./config.js";
 import { AppError } from "./errors.js";
+import { email } from "./validation.js";
 
 const dummyPasswordHash = await bcrypt.hash(randomUUID(), 12);
 
@@ -10,7 +11,6 @@ export function publicUser(row) {
   return {
     id: String(row.id),
     nombre: row.nombre,
-    usuario: row.usuario,
     correo: row.correo,
     rol: row.rol,
     activo: row.activo,
@@ -46,7 +46,7 @@ export function createLoginThrottle({ maxAttempts = 5, windowMs = 15 * 60_000, m
 }
 
 export async function login({ correo, password: rawPassword, ip }, db, throttle) {
-  const normalizedEmail = typeof correo === "string" ? correo.trim().toLowerCase() : "";
+  const normalizedEmail = email(correo);
   if (typeof rawPassword !== "string" || rawPassword.length < 1 || rawPassword.length > 200) {
     throw new AppError("INVALID_CREDENTIALS", "Correo o contraseña incorrectos.", 401);
   }
@@ -54,9 +54,9 @@ export async function login({ correo, password: rawPassword, ip }, db, throttle)
   throttle.check(key);
 
   const result = await db.query(
-    `SELECT id, nombre, usuario, correo, password_hash, rol, activo, creado_en
+    `SELECT id, nombre, correo, password_hash, rol, activo, creado_en
        FROM usuarios
-      WHERE correo = $1 OR usuario = $1`,
+      WHERE correo = $1`,
     [normalizedEmail],
   );
   const found = result.rows[0];
@@ -101,7 +101,7 @@ export async function authenticatedUser(headers, db) {
     throw new AppError("UNAUTHENTICATED", "La sesión no es válida o ha expirado.", 401);
   }
   const result = await db.query(
-    `SELECT id, nombre, usuario, correo, rol, activo, creado_en
+    `SELECT id, nombre, correo, rol, activo, creado_en
        FROM usuarios
       WHERE id = $1`,
     [id],
