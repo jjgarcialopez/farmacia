@@ -117,5 +117,18 @@ export function createMedicationOperations({ pool }) {
       if (!result.rowCount) throw notFound("El medicamento");
       return { success: true, medication: mapMedication(result.rows[0]) };
     }),
+
+    ActivateMedication: operation("ActivateMedication", async (args, headers) => {
+      await requireRoles(headers, pool, ["administrador"]);
+      const id = positiveId(args.id);
+      const result = await pool.query(
+        `UPDATE medicamentos SET activo = TRUE
+          WHERE id = $1
+          RETURNING ${SELECT_MEDICATION}`,
+        [id],
+      );
+      if (!result.rowCount) throw notFound("El medicamento");
+      return { success: true, medication: mapMedication(result.rows[0]) };
+    }),
   };
 }

@@ -68,7 +68,7 @@ Los roles son `administrador`, `operador`, `consulta` y `auditor`. El backend ve
 |---|---:|---:|---:|---:|
 | Consultar medicamentos y lotes | Sí | Sí | Sí | Sí |
 | Crear o actualizar medicamentos y lotes | Sí | Sí | No | No |
-| Desactivar medicamentos / eliminar lotes | Sí | No | No | No |
+| Activar o desactivar medicamentos / eliminar lotes | Sí | No | No | No |
 | Consultar inventario | Sí | Sí | No | Sí |
 | Consultar ventas | Sí | Sí | Sí | Sí |
 | Crear o revertir ventas | Sí | Sí | No | No |
@@ -78,7 +78,7 @@ Los roles son `administrador`, `operador`, `consulta` y `auditor`. El backend ve
 
 - Sesión: `Login`, `ValidateSession`.
 - Usuarios: `ListUsers`, `GetUser`, `CreateUser`, `UpdateUser`, `DeactivateUser`.
-- Medicamentos: `ListMedications`, `GetMedication`, `CreateMedication`, `UpdateMedication`, `DeactivateMedication`.
+- Medicamentos: `ListMedications`, `GetMedication`, `CreateMedication`, `UpdateMedication`, `DeactivateMedication`, `ActivateMedication`.
 - Lotes: `ListBatches`, `GetBatch`, `CreateBatch`, `UpdateBatch`, `DeleteBatch`, `ListExpirationAlerts`.
 - Inventario: `ListInventoryMovements`, `ListInventoryMovementsByBatch`.
 - Ventas: `ListSales`, `GetSale`, `PreviewSale`, `CreateSale`, `ReverseSale`.

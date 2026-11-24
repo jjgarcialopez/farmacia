@@ -321,6 +321,12 @@
           <xsd:element name="medication" type="tns:MedicationType"/>
         </xsd:sequence>
       </xsd:complexType>
+      <xsd:complexType name="ActivateMedicationResponseType">
+        <xsd:sequence>
+          <xsd:element name="success" type="xsd:boolean"/>
+          <xsd:element name="medication" type="tns:MedicationType"/>
+        </xsd:sequence>
+      </xsd:complexType>
 
       <xsd:complexType name="BatchListRequestType">
         <xsd:sequence>
@@ -487,6 +493,8 @@
       <xsd:element name="UpdateMedicationResponse" type="tns:MedicationResponseType"/>
       <xsd:element name="DeactivateMedication" type="tns:IdRequestType"/>
       <xsd:element name="DeactivateMedicationResponse" type="tns:DeactivateMedicationResponseType"/>
+      <xsd:element name="ActivateMedication" type="tns:IdRequestType"/>
+      <xsd:element name="ActivateMedicationResponse" type="tns:ActivateMedicationResponseType"/>
 
       <xsd:element name="ListBatches" type="tns:BatchListRequestType"/>
       <xsd:element name="ListBatchesResponse" type="tns:BatchListResponseType"/>
@@ -548,6 +556,8 @@
   <message name="UpdateMedicationOutput"><part name="parameters" element="tns:UpdateMedicationResponse"/></message>
   <message name="DeactivateMedicationInput"><part name="parameters" element="tns:DeactivateMedication"/></message>
   <message name="DeactivateMedicationOutput"><part name="parameters" element="tns:DeactivateMedicationResponse"/></message>
+  <message name="ActivateMedicationInput"><part name="parameters" element="tns:ActivateMedication"/></message>
+  <message name="ActivateMedicationOutput"><part name="parameters" element="tns:ActivateMedicationResponse"/></message>
   <message name="ListBatchesInput"><part name="parameters" element="tns:ListBatches"/></message>
   <message name="ListBatchesOutput"><part name="parameters" element="tns:ListBatchesResponse"/></message>
   <message name="GetBatchInput"><part name="parameters" element="tns:GetBatch"/></message>
@@ -589,6 +599,7 @@
     <operation name="CreateMedication"><input message="tns:CreateMedicationInput"/><output message="tns:CreateMedicationOutput"/></operation>
     <operation name="UpdateMedication"><input message="tns:UpdateMedicationInput"/><output message="tns:UpdateMedicationOutput"/></operation>
     <operation name="DeactivateMedication"><input message="tns:DeactivateMedicationInput"/><output message="tns:DeactivateMedicationOutput"/></operation>
+    <operation name="ActivateMedication"><input message="tns:ActivateMedicationInput"/><output message="tns:ActivateMedicationOutput"/></operation>
     <operation name="ListBatches"><input message="tns:ListBatchesInput"/><output message="tns:ListBatchesOutput"/></operation>
     <operation name="GetBatch"><input message="tns:GetBatchInput"/><output message="tns:GetBatchOutput"/></operation>
     <operation name="CreateBatch"><input message="tns:CreateBatchInput"/><output message="tns:CreateBatchOutput"/></operation>
@@ -619,6 +630,7 @@
     <operation name="CreateMedication"><soap:operation soapAction="urn:farmacia:v1#CreateMedication"/><input><soap:body use="literal"/><soap:header message="tns:AuthHeaderMessage" part="header" use="literal"/></input><output><soap:body use="literal"/></output></operation>
     <operation name="UpdateMedication"><soap:operation soapAction="urn:farmacia:v1#UpdateMedication"/><input><soap:body use="literal"/><soap:header message="tns:AuthHeaderMessage" part="header" use="literal"/></input><output><soap:body use="literal"/></output></operation>
     <operation name="DeactivateMedication"><soap:operation soapAction="urn:farmacia:v1#DeactivateMedication"/><input><soap:body use="literal"/><soap:header message="tns:AuthHeaderMessage" part="header" use="literal"/></input><output><soap:body use="literal"/></output></operation>
+    <operation name="ActivateMedication"><soap:operation soapAction="urn:farmacia:v1#ActivateMedication"/><input><soap:body use="literal"/><soap:header message="tns:AuthHeaderMessage" part="header" use="literal"/></input><output><soap:body use="literal"/></output></operation>
     <operation name="ListBatches"><soap:operation soapAction="urn:farmacia:v1#ListBatches"/><input><soap:body use="literal"/><soap:header message="tns:AuthHeaderMessage" part="header" use="literal"/></input><output><soap:body use="literal"/></output></operation>
     <operation name="GetBatch"><soap:operation soapAction="urn:farmacia:v1#GetBatch"/><input><soap:body use="literal"/><soap:header message="tns:AuthHeaderMessage" part="header" use="literal"/></input><output><soap:body use="literal"/></output></operation>
     <operation name="CreateBatch"><soap:operation soapAction="urn:farmacia:v1#CreateBatch"/><input><soap:body use="literal"/><soap:header message="tns:AuthHeaderMessage" part="header" use="literal"/></input><output><soap:body use="literal"/></output></operation>

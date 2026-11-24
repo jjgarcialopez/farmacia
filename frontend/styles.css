@@ -33,12 +33,7 @@ button { cursor: pointer; }
 .login-art::after { right: -145px; bottom: -115px; }
 .art-glow { position: absolute; top: 28%; left: 18%; width: 360px; height: 360px; border-radius: 50%; background: rgba(57, 185, 133, .18); filter: blur(80px); }
 .brand, .art-brand, .mobile-brand { z-index: 1; display: inline-flex; align-items: center; gap: 11px; color: inherit; font-family: "Segoe UI", Arial, sans-serif; font-size: 19px; font-weight: 800; text-decoration: none; }
-.brand-mark { position: relative; display: inline-flex; width: 35px; height: 35px; flex: 0 0 35px; align-items: center; justify-content: center; border-radius: 11px; background: var(--green); }
-.brand-mark::before, .brand-mark::after { position: absolute; border-radius: 2px; background: #fff; content: ""; }
-.brand-mark::before { width: 17px; height: 4px; }
-.brand-mark::after { width: 4px; height: 17px; }
-.brand-mark span { display: none; }
-.brand-mark i { display: none; }
+.brand-mark { display: inline-flex; width: 35px; height: 35px; flex: 0 0 35px; align-items: center; justify-content: center; border-radius: 11px; background: var(--green); color: var(--lime); font: 900 11px/1 "Segoe UI", Arial, sans-serif; letter-spacing: -1px; }
 .art-brand .brand-mark { background: rgba(255,255,255,.17); }
 .art-copy { z-index: 1; margin: auto 0; padding: 55px 0 75px; }
 .art-copy .eyebrow { color: #b7dfcf; }
@@ -74,8 +69,6 @@ button { cursor: pointer; }
 .sidebar { position: fixed; z-index: 3; display: flex; width: 244px; height: 100vh; flex-direction: column; padding: 28px 17px 18px; border-right: 1px solid #dfeae3; background: #f8fbf8; }
 .sidebar .brand { margin: 0 0 51px 9px; color: #1c3a30; font-size: 17px; }
 .sidebar .brand-mark { width: 32px; height: 32px; flex-basis: 32px; border-radius: 10px; }
-.sidebar .brand-mark::before { width: 16px; height: 3.5px; }
-.sidebar .brand-mark::after { width: 3.5px; height: 16px; }
 .nav-label { margin: 0 0 12px 10px; color: #9aa69f; font-size: 9px; font-weight: 700; letter-spacing: 1.1px; }
 .navigation { display: grid; gap: 6px; }
 .nav-link { position: relative; display: flex; height: 43px; align-items: center; gap: 12px; padding: 0 12px; border: 0; border-radius: 7px; background: transparent; color: #75837c; font-size: 12px; text-align: left; }
@@ -226,8 +219,6 @@ tbody tr:last-child td { border-bottom: 0; }
   .topbar { height: 59px; padding: 0 17px; }
   .topbar .mobile-brand { display: inline-flex; font-size: 15px; }
   .topbar .brand-mark { width: 29px; height: 29px; flex-basis: 29px; }
-  .topbar .brand-mark::before { width: 14px; height: 3px; }
-  .topbar .brand-mark::after { width: 3px; height: 14px; }
   .breadcrumb, .today { display: none; }
   .topbar-right { margin-left: auto; }
   .page-content { padding: 24px 16px 27px; }
@@ -620,7 +611,6 @@ body { background: #f4f1ed; }
 .login-art::before, .login-art::after { border-color: rgba(212,175,159,.2); }
 .art-glow { background: rgba(170,211,30,.18); }
 .art-brand .brand-mark { background: var(--lime); }
-.art-brand .brand-mark::before, .art-brand .brand-mark::after { background: var(--olive); }
 .art-copy .eyebrow { color: var(--lime); }
 .art-copy p, .art-footer { color: #e7ddcf; }
 .art-check { border-color: rgba(212,175,159,.4); }
@@ -633,7 +623,7 @@ body { background: #f4f1ed; }
 .login-note, .login-copyright { color: #73736b; }
 .mobile-brand { color: var(--olive); }
 .brand-mark { background: var(--lime); }
-.brand-mark::before, .brand-mark::after { background: var(--olive); }
+.brand-mark { color: var(--olive); }
 
 .button-primary { background: var(--lime); color: var(--olive); }
 .button-primary:hover { background: #98bd19; color: #41422d; }
@@ -728,6 +718,50 @@ td { border-color: #eee9e4; color: #66655d; }
 .sale-cart-header { border-bottom-color: #e3d8d0; background: #f4e9e3; }
 .sale-cart-count { background: var(--lime); color: var(--olive); }
 .sale-guidance { border-color: #d4af9f; background: #f8f1ed; }
+
+.not-found-page { display: grid; min-height: calc(100vh - 150px); place-items: center; }
+.not-found-card { display: grid; width: min(100%, 980px); grid-template-columns: minmax(0, 1.08fr) minmax(270px, .92fr); align-items: center; gap: clamp(24px, 5vw, 58px); padding: clamp(25px, 5vw, 56px); border: 1px solid #e3d8d0; border-radius: 20px; background: rgba(255,255,255,.88); box-shadow: 0 20px 55px rgba(82,82,54,.08); }
+.not-found-copy .eyebrow { color: var(--terracotta); font-size: 9px; }
+.not-found-code { margin: 24px 0 13px; color: var(--olive); font-size: clamp(82px, 11vw, 128px); font-weight: 900; line-height: .78; letter-spacing: -.09em; }
+.not-found-copy h1 { max-width: 430px; margin: 20px 0 10px; color: var(--olive); font: 800 clamp(22px, 2.7vw, 30px)/1.18 "Segoe UI", Arial, sans-serif; letter-spacing: -.8px; }
+.not-found-copy > p { max-width: 420px; margin: 0; color: #73736b; font-size: 12px; line-height: 1.75; }
+.not-found-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 23px; }
+.not-found-actions .button { min-height: 42px; }
+.not-found-actions .button-primary .icon, .not-found-actions .button-soft .icon { width: 16px; height: 16px; }
+.not-found-note { display: block; margin-top: 19px; color: #85847b; font-size: 10px; }
+.not-found-illustration { position: relative; display: grid; min-height: 330px; overflow: hidden; place-items: center; border: 1px solid #e3d8d0; border-radius: 16px; background: linear-gradient(145deg, #f7f5eb, #f0f1df); isolation: isolate; }
+.not-found-sun { position: absolute; top: 35px; left: 36px; width: 46px; height: 46px; border-radius: 50%; background: #ead9cf; }
+.not-found-orbit { position: absolute; width: 225px; height: 225px; border: 1px dashed rgba(159,117,96,.45); border-radius: 50%; }
+.not-found-number { position: absolute; z-index: 2; top: 44px; right: 27px; padding: 8px 13px; transform: rotate(7deg); border: 1px solid #d4af9f; border-radius: 8px; background: var(--lime); color: var(--olive); font-size: 19px; font-weight: 900; letter-spacing: 1px; box-shadow: 0 6px 15px rgba(82,82,54,.12); }
+.not-found-warehouse { z-index: 1; display: grid; width: 142px; height: 142px; transform: rotate(-4deg); place-items: center; border: 1px solid #d4af9f; border-radius: 29px; background: #fff; color: var(--olive); box-shadow: 0 18px 34px rgba(82,82,54,.13); }
+.not-found-warehouse .icon { width: 78px; height: 78px; stroke-width: 1.35; }
+.not-found-package { position: absolute; z-index: 2; bottom: 69px; width: 49px; height: 43px; border: 1px solid #bca28f; border-radius: 5px; background: #d4af9f; box-shadow: 0 8px 14px rgba(82,82,54,.1); }
+.not-found-package::before { position: absolute; top: -1px; left: 20px; width: 8px; height: 42px; border-right: 1px solid #bca28f; border-left: 1px solid #bca28f; background: #f0e2d9; content: ""; }
+.package-left { left: calc(50% - 104px); transform: rotate(-10deg); }
+.package-right { right: calc(50% - 106px); bottom: 59px; transform: rotate(9deg) scale(.8); background: #c9c8ae; }
+.package-right::before { border-color: #aaa98e; background: #e6e5d6; }
+.not-found-ground { position: absolute; right: 12%; bottom: 51px; left: 12%; height: 1px; background: #d4af9f; }
+.not-found-caption { position: absolute; bottom: 25px; color: #73736b; font-size: 8px; font-weight: 800; letter-spacing: 1.5px; }
+
+@media (max-width: 850px) {
+  .not-found-card { grid-template-columns: 1fr; }
+  .not-found-illustration { min-height: 280px; }
+}
+
+@media (max-width: 720px) {
+  .navigation { display: flex; }
+  .nav-link { min-width: 0; flex: 1; }
+  .not-found-page { min-height: calc(100vh - 175px); padding-bottom: 20px; }
+  .not-found-card { gap: 22px; padding: 24px 20px; }
+  .not-found-code { margin-top: 20px; font-size: 82px; }
+  .not-found-illustration { min-height: 245px; }
+  .not-found-warehouse { width: 112px; height: 112px; border-radius: 24px; }
+  .not-found-warehouse .icon { width: 65px; height: 65px; }
+  .not-found-package { bottom: 46px; }
+  .package-right { bottom: 39px; }
+  .not-found-ground { bottom: 31px; }
+  .not-found-caption { bottom: 12px; }
+}
 .sale-guidance-icon { background: var(--lime); color: var(--olive); }
 .sale-preview-total { background: #f0f1df; color: var(--olive); }
 .sale-preview-total strong, .chart-total { color: var(--olive); }

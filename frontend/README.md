@@ -1,4 +1,4 @@
-# FarmaSalud Popayán frontend
+# Farmacias Vital Salud frontend
 
 Interfaz web independiente para el backend SOAP de farmacia. El frontend vive en esta carpeta y consume las operaciones disponibles de sesiones, usuarios, medicamentos, lotes, alertas, inventario y ventas; las reglas de negocio y autorización siguen en el backend.
 

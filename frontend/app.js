@@ -1,3 +1,5 @@
+import { matchingMedicationsWithoutBatches, normalizeSearchText } from "./search.js";
+
 const API_URL = window.APP_CONFIG?.apiUrl || "http://localhost:4000/soap";
 const HEALTH_URL = window.APP_CONFIG?.healthUrl || "http://localhost:4000/health";
 const SESSION_WARNING_MS = (window.APP_CONFIG?.sessionWarningMinutes || 5) * 60_000;
@@ -45,6 +47,7 @@ const icon = (name, className = "") => {
     home: '<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>',
     pills: '<path d="m10.5 20.5 10-10a5.7 5.7 0 0 0-8-8l-10 10a5.7 5.7 0 0 0 8 8Z"/><path d="m8.5 8.5 7 7"/>',
     box: '<path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 8 9 5 9-5"/><path d="M3 8v9l9 5 9-5V8"/><path d="M12 13v9"/>',
+    warehouse: '<path d="M3 10 12 4l9 6v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V10Z"/><path d="M9 21v-7h6v7M7 11h.01M12 11h.01M17 11h.01"/>',
     receipt: '<path d="M4 3v18l3-2 3 2 2-2 3 2 2-2 3 2V3l-3 2-3-2-2 2-3-2-2 2-3-2Z"/><path d="M8 9h8M8 13h8"/>',
     print: '<path d="M6 9V3h12v6"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6z"/><path d="M18 12h.01"/>',
     users: '<path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
@@ -488,7 +491,7 @@ function stockTotal() {
 }
 
 function brandMark() {
-  return '<span class="brand-mark"></span>';
+  return '<span class="brand-mark" aria-hidden="true"><span>V</span><span>S</span></span>';
 }
 
 function initials() {
@@ -498,9 +501,9 @@ function initials() {
 function renderLogin(error = "") {
   app.innerHTML = `
     <main class="login-layout">
-      <section class="login-art" aria-label="Bienvenido a FarmaSalud Popayán">
+      <section class="login-art" aria-label="Bienvenido a Farmacias Vital Salud">
         <div class="art-glow"></div>
-        <div class="art-brand">${brandMark()}<span>FarmaSalud Popayán</span></div>
+        <div class="art-brand">${brandMark()}<span>Farmacias Vital Salud</span></div>
         <div class="art-copy">
           <span class="eyebrow">CUIDAMOS DE TI, TODOS LOS DÍAS</span>
           <h1>Tu farmacia,<br />más cerca.</h1>
@@ -509,7 +512,7 @@ function renderLogin(error = "") {
         <div class="art-footer"><span class="art-check">${icon("check")}</span> Gestión clara. Cuidado cercano.</div>
       </section>
       <section class="login-panel">
-        <div class="mobile-brand">${brandMark()}<span>FarmaSalud Popayán</span></div>
+        <div class="mobile-brand">${brandMark()}<span>Farmacias Vital Salud</span></div>
         <div class="login-card">
           <span class="eyebrow">PANEL DE GESTIÓN</span>
           <h2>Qué bueno verte</h2>
@@ -524,7 +527,7 @@ function renderLogin(error = "") {
           </form>
           <p class="login-note">Tu información está protegida y solo disponible para tu equipo.</p>
         </div>
-        <span class="login-copyright">© 2026 FarmaSalud Popayán · Gestión farmacéutica</span>
+        <span class="login-copyright">© 2026 Farmacias Vital Salud · Gestión farmacéutica</span>
       </section>
     </main>`;
 
@@ -559,6 +562,7 @@ function renderShell() {
     inicio: "Resumen",
     medicamentos: "Medicamentos",
     inventario: "Inventario",
+    bodegas: "Bodegas",
     ventas: "Ventas",
     movimientos: "Movimientos",
     usuarios: "Usuarios",
@@ -567,6 +571,7 @@ function renderShell() {
     ["inicio", "Resumen", "home"],
     ["medicamentos", "Medicamentos", "pills"],
     ["inventario", "Inventario", "box"],
+    ["bodegas", "Bodegas", "warehouse"],
     ["ventas", "Ventas", "receipt"],
   ];
   if (canReadInventoryMovements()) menu.push(["movimientos", "Movimientos", "activity"]);
@@ -574,7 +579,7 @@ function renderShell() {
   app.innerHTML = `
     <div class="app-shell">
       <aside class="sidebar">
-        <a class="brand" href="#" aria-label="FarmaSalud Popayán, inicio">${brandMark()}<span>FarmaSalud Popayán</span></a>
+        <a class="brand" href="#" aria-label="Farmacias Vital Salud, inicio">${brandMark()}<span>Farmacias Vital Salud</span></a>
         <div class="nav-label">GESTIÓN FARMACÉUTICA</div>
         <nav class="navigation">${menu.map(([route, label, iconName]) => navItem(route, label, iconName)).join("")}</nav>
         <div class="sidebar-bottom">
@@ -583,7 +588,7 @@ function renderShell() {
         </div>
       </aside>
       <main class="main-area">
-        <header class="topbar"><div class="mobile-brand">${brandMark()}<span>FarmaSalud Popayán</span></div><div class="breadcrumb">Panel <span>/</span> <strong>${titles[state.route]}</strong></div><div class="topbar-right"><span class="connection-status ${state.connection}" title="${state.connection === "connected" ? "Backend y base de datos disponibles" : "Conexión no disponible"}"><i></i>${state.connection === "connected" ? "Conectado" : state.connection === "checking" ? "Verificando" : "Sin conexión"}</span><span class="today">${new Date().toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" })}</span><span class="topbar-avatar">${initials()}</span></div></header>
+        <header class="topbar"><div class="mobile-brand">${brandMark()}<span>Farmacias Vital Salud</span></div><div class="breadcrumb">Panel <span>/</span> <strong>${titles[state.route]}</strong></div><div class="topbar-right"><span class="connection-status ${state.connection}" title="${state.connection === "connected" ? "Backend y base de datos disponibles" : "Conexión no disponible"}"><i></i>${state.connection === "connected" ? "Conectado" : state.connection === "checking" ? "Verificando" : "Sin conexión"}</span><span class="today">${new Date().toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" })}</span><span class="topbar-avatar">${initials()}</span></div></header>
         <section class="page-content">${renderRoute()}</section>
       </main>
       ${state.toast ? `<div class="toast" role="status">${icon("check")}${escapeHTML(state.toast)}</div>` : ""}
@@ -623,6 +628,7 @@ function userAvatar() {
 
 function renderRoute() {
   if (state.loading) return `<section class="loading-route" aria-busy="true" aria-label="Cargando información">${skeletonRows(4, 2)}<div class="dashboard-skeleton-grid">${skeletonRows(5, 4)}${skeletonRows(3, 5)}</div></section>`;
+  if (state.route === "bodegas") return renderNotFound();
   if (state.route === "medicamentos") return renderMedications();
   if (state.route === "inventario") return state.inventoryTab === "movimientos" && canReadInventoryMovements()
     ? renderMovements()
@@ -631,6 +637,35 @@ function renderRoute() {
   if (state.route === "ventas") return renderSales();
   if (state.route === "usuarios" && canAdministerUsers()) return renderUsers();
   return renderDashboard();
+}
+
+function renderNotFound() {
+  return `
+    <section class="not-found-page" aria-labelledby="not-found-title">
+      <div class="not-found-card">
+        <div class="not-found-copy">
+          <span class="eyebrow">ERROR 404 · SECCIÓN NO DISPONIBLE</span>
+          <div class="not-found-code" aria-hidden="true">404</div>
+          <h1 id="not-found-title">¡Ups! No encontramos esta bodega.</h1>
+          <p>La dirección que buscas no está disponible. Esta sección es una demostración de una página de error; puedes volver al panel y continuar gestionando tu farmacia.</p>
+          <div class="not-found-actions">
+            <button type="button" class="button button-primary" data-route="inicio">${icon("home")}Volver al resumen</button>
+            <button type="button" class="button button-soft" data-route="inventario">${icon("box")}Ver inventario</button>
+          </div>
+          <span class="not-found-note">Tranquilo, tus medicamentos y existencias siguen a salvo.</span>
+        </div>
+        <div class="not-found-illustration" aria-hidden="true">
+          <span class="not-found-sun"></span>
+          <span class="not-found-orbit"></span>
+          <span class="not-found-number">404</span>
+          <div class="not-found-warehouse">${icon("warehouse")}</div>
+          <div class="not-found-package package-left"></div>
+          <div class="not-found-package package-right"></div>
+          <span class="not-found-ground"></span>
+          <span class="not-found-caption">DESTINO NO ENCONTRADO</span>
+        </div>
+      </div>
+    </section>`;
 }
 
 function pageHeading(eyebrow, title, description, action = "") {
@@ -701,15 +736,16 @@ function alertRow(alert) {
 }
 
 function renderMedications() {
-  const query = state.search.trim().toLocaleLowerCase("es");
-  const medications = state.medications.filter((item) => `${item.nombre} ${item.codigo} ${item.principioActivo}`.toLocaleLowerCase("es").includes(query));
+  const query = normalizeSearchText(state.search).trim();
+  const medications = state.medications.filter((item) =>
+    normalizeSearchText(`${item.nombre} ${item.codigo} ${item.principioActivo}`).includes(query));
   const medicationPage = pageRows(sortedRows(medications, "medications"), "medications", 10);
   const action = canWrite() ? button("Agregar medicamento", "new-medication", "button button-primary", "plus") : "";
   return `
     ${pageHeading("CATÁLOGO", "Medicamentos", `${state.medications.length} registros en tu catálogo.`, action)}
     <section class="panel list-panel">
       <div class="list-toolbar"><div><h2>Catálogo de medicamentos</h2><p>Consulta, registra y actualiza productos.</p></div><div class="toolbar-actions"><div class="catalog-search"><label class="search-field">${icon("search")}<input id="medicine-search" type="search" value="${escapeHTML(state.search)}" placeholder="Nombre, código o principio activo..." aria-label="Buscar por nombre, código o principio activo" autocomplete="off" /></label><span class="search-result-count" role="status">${query ? `${medications.length} ${medications.length === 1 ? "resultado" : "resultados"}` : `${state.medications.length} medicamentos`}</span></div><button class="button button-soft export-button" type="button" data-action="export-medications">${icon("print")}Exportar Excel</button></div></div>
-      ${medications.length ? `<div class="table-wrap"><table class="responsive-table"><thead><tr>${sortableHeading("medications", "nombre", "MEDICAMENTO")}${sortableHeading("medications", "codigo", "CÓDIGO")}${sortableHeading("medications", "principioActivo", "PRINCIPIO ACTIVO")}${sortableHeading("medications", "presentacion", "PRESENTACIÓN")}${sortableHeading("medications", "precioReferencia", "PRECIO REF.")}<th>FÓRMULA</th>${sortableHeading("medications", "activo", "ESTADO")}<th>ACCIONES</th></tr></thead><tbody>${medicationPage.rows.map((item) => `<tr><td data-label="Medicamento"><strong class="table-primary">${escapeHTML(item.nombre)}</strong></td><td data-label="Código">${escapeHTML(item.codigo)}</td><td data-label="Principio activo">${escapeHTML(item.principioActivo)}</td><td data-label="Presentación">${escapeHTML(item.presentacion)}</td><td data-label="Precio ref.">${formatMoney(item.precioReferencia)}</td><td data-label="Fórmula">${item.requiereFormula ? "Requiere" : "Libre"}</td><td data-label="Estado"><span class="status ${item.activo ? "status-good" : "status-neutral"}">${item.activo ? "Activo" : "Inactivo"}</span></td><td data-label="Acciones" class="actions-cell"><button class="icon-button" data-action="view-medication" data-id="${escapeHTML(item.id)}" aria-label="Ver medicamento">${icon("eye")}</button>${canWrite() ? `<button class="icon-button" data-action="edit-medication" data-id="${escapeHTML(item.id)}" aria-label="Editar medicamento">${icon("edit")}</button>` : ""}${state.user.rol === "administrador" && item.activo ? `<button class="icon-button danger-icon" data-action="deactivate-medication" data-id="${escapeHTML(item.id)}" aria-label="Desactivar medicamento">${icon("close")}</button>` : ""}</td></tr>`).join("")}</tbody></table></div>${paginationBar("medications", medicationPage)}` : emptyState(query ? "No encontramos resultados" : "Aún no hay medicamentos", query ? "Prueba con otro nombre, código o principio activo." : canWrite() ? "Agrega el primer producto de tu catálogo." : "Los medicamentos registrados aparecerán aquí.")}
+      ${medications.length ? `<div class="table-wrap"><table class="responsive-table"><thead><tr>${sortableHeading("medications", "nombre", "MEDICAMENTO")}${sortableHeading("medications", "codigo", "CÓDIGO")}${sortableHeading("medications", "principioActivo", "PRINCIPIO ACTIVO")}${sortableHeading("medications", "presentacion", "PRESENTACIÓN")}${sortableHeading("medications", "precioReferencia", "PRECIO REF.")}<th>FÓRMULA</th>${sortableHeading("medications", "activo", "ESTADO")}<th>ACCIONES</th></tr></thead><tbody>${medicationPage.rows.map((item) => `<tr><td data-label="Medicamento"><strong class="table-primary">${escapeHTML(item.nombre)}</strong></td><td data-label="Código">${escapeHTML(item.codigo)}</td><td data-label="Principio activo">${escapeHTML(item.principioActivo)}</td><td data-label="Presentación">${escapeHTML(item.presentacion)}</td><td data-label="Precio ref.">${formatMoney(item.precioReferencia)}</td><td data-label="Fórmula">${item.requiereFormula ? "Requiere" : "Libre"}</td><td data-label="Estado"><span class="status ${item.activo ? "status-good" : "status-neutral"}">${item.activo ? "Activo" : "Inactivo"}</span></td><td data-label="Acciones" class="actions-cell"><button class="icon-button" data-action="view-medication" data-id="${escapeHTML(item.id)}" aria-label="Ver medicamento">${icon("eye")}</button>${canWrite() ? `<button class="icon-button" data-action="edit-medication" data-id="${escapeHTML(item.id)}" aria-label="Editar medicamento">${icon("edit")}</button>` : ""}${state.user.rol === "administrador" ? item.activo ? `<button class="icon-button danger-icon" data-action="deactivate-medication" data-id="${escapeHTML(item.id)}" aria-label="Desactivar medicamento">${icon("close")}</button>` : `<button class="button button-soft activate-button" data-action="activate-medication" data-id="${escapeHTML(item.id)}" aria-label="Reactivar medicamento">${icon("check")}Reactivar</button>` : ""}</td></tr>`).join("")}</tbody></table></div>${paginationBar("medications", medicationPage)}` : emptyState(query ? "No encontramos resultados" : "Aún no hay medicamentos", query ? "Prueba con otro nombre, código o principio activo." : canWrite() ? "Agrega el primer producto de tu catálogo." : "Los medicamentos registrados aparecerán aquí.")}
     </section>
     <p class="list-footnote">Consulta hasta ${state.medications.length} medicamentos registrados.</p>`;
 }
@@ -722,17 +758,30 @@ function inventoryTabs() {
 }
 
 function renderBatches() {
-  const query = state.batchSearch.trim().toLocaleLowerCase("es");
-  const batches = state.batches.filter((batch) => `${batch.medicamentoNombre} ${batch.codigoLote}`.toLocaleLowerCase("es").includes(query));
+  const query = normalizeSearchText(state.batchSearch).trim();
+  const batches = state.batches.filter((batch) =>
+    normalizeSearchText(`${batch.medicamentoNombre} ${batch.codigoLote}`).includes(query));
+  const medicationsWithoutBatches = matchingMedicationsWithoutBatches(state.medications, state.batches, query);
   const batchPage = pageRows(sortedRows(batches, "batches"), "batches", 10);
   const action = canWrite() ? button("Registrar lote", "new-batch", "button button-primary", "plus") : "";
+  const emptyTitle = query
+    ? medicationsWithoutBatches.length ? "Medicamento sin lotes" : "No encontramos lotes"
+    : "Sin lotes registrados";
+  const medicationNames = medicationsWithoutBatches.map((medication) => medication.nombre).join(", ");
+  const emptyMessage = query
+    ? medicationsWithoutBatches.length
+      ? `${medicationsWithoutBatches.length === 1 ? "El medicamento" : "Los medicamentos"} ${medicationNames} ${medicationsWithoutBatches.length === 1 ? "está" : "están"} en el catálogo, pero no tiene${medicationsWithoutBatches.length === 1 ? "" : "n"} lotes registrados. ${canWrite() ? "Registra un lote para agregar existencias." : "Solicita a un administrador u operador que registre un lote."}`
+      : "Prueba con otro medicamento o código de lote."
+    : canWrite()
+      ? "Registra un lote para comenzar a controlar las existencias."
+      : "Los lotes registrados en el backend aparecerán en esta tabla.";
   return `
     ${pageHeading("CONTROL DE EXISTENCIAS", "Inventario", `${state.batches.length} lotes · ${stockTotal().toLocaleString("es-CO")} unidades disponibles.`, action)}
     <div class="tab-row">${inventoryTabs()}</div>
     ${state.alerts.length ? `<section class="alert-banner"><span class="banner-icon">!</span><div><strong>${state.alerts.length} ${state.alerts.length === 1 ? "lote requiere" : "lotes requieren"} atención</strong><p>Hay productos vencidos o próximos a vencer en los siguientes 30 días.</p></div></section>` : ""}
     <section class="panel list-panel">
       <div class="list-toolbar"><div><h2>Lotes de inventario</h2><p>Existencias ordenadas por fecha de vencimiento.</p></div><div class="toolbar-actions"><label class="search-field">${icon("search")}<input id="batch-search" type="search" value="${escapeHTML(state.batchSearch)}" placeholder="Buscar medicamento o lote..." aria-label="Buscar lotes" /></label><button class="button button-soft export-button" type="button" data-action="export-batches">${icon("print")}Exportar Excel</button></div></div>
-      ${batches.length ? `<div class="table-wrap"><table class="responsive-table"><thead><tr>${sortableHeading("batches", "medicamentoNombre", "MEDICAMENTO")}${sortableHeading("batches", "codigoLote", "CÓDIGO DE LOTE")}${sortableHeading("batches", "fechaVencimiento", "VENCIMIENTO")}${sortableHeading("batches", "stock", "UNIDADES")}${sortableHeading("batches", "costoUnitario", "COSTO")}${sortableHeading("batches", "precioVenta", "PRECIO")}<th>DISPONIBILIDAD</th><th>ACCIONES</th></tr></thead><tbody>${batchPage.rows.map((batch) => `<tr><td data-label="Medicamento"><strong class="table-primary">${escapeHTML(batch.medicamentoNombre)}</strong></td><td data-label="Lote">${escapeHTML(batch.codigoLote)}</td><td data-label="Vencimiento">${formatDate(batch.fechaVencimiento)}</td><td data-label="Unidades"><strong>${batch.stock.toLocaleString("es-CO")}</strong></td><td data-label="Costo">${formatMoney(batch.costoUnitario)}</td><td data-label="Precio">${formatMoney(batch.precioVenta)}</td><td data-label="Disponibilidad">${batchStatus(batch)}</td><td data-label="Acciones" class="actions-cell"><button class="icon-button" data-action="view-batch" data-id="${escapeHTML(batch.id)}" aria-label="Ver lote">${icon("eye")}</button>${canWrite() ? `<button class="icon-button" data-action="edit-batch" data-id="${escapeHTML(batch.id)}" aria-label="Editar lote">${icon("edit")}</button>` : ""}${state.user.rol === "administrador" ? `<button class="icon-button danger-icon" data-action="delete-batch" data-id="${escapeHTML(batch.id)}" aria-label="Eliminar lote">${icon("trash")}</button>` : ""}</td></tr>`).join("")}</tbody></table></div>${paginationBar("batches", batchPage)}` : emptyState(query ? "No encontramos lotes" : "Sin lotes registrados", query ? "Prueba con otro medicamento o código de lote." : canWrite() ? "Registra un lote para comenzar a controlar las existencias." : "Los lotes registrados en el backend aparecerán en esta tabla.")}
+      ${batches.length ? `<div class="table-wrap"><table class="responsive-table"><thead><tr>${sortableHeading("batches", "medicamentoNombre", "MEDICAMENTO")}${sortableHeading("batches", "codigoLote", "CÓDIGO DE LOTE")}${sortableHeading("batches", "fechaVencimiento", "VENCIMIENTO")}${sortableHeading("batches", "stock", "UNIDADES")}${sortableHeading("batches", "costoUnitario", "COSTO")}${sortableHeading("batches", "precioVenta", "PRECIO")}<th>DISPONIBILIDAD</th><th>ACCIONES</th></tr></thead><tbody>${batchPage.rows.map((batch) => `<tr><td data-label="Medicamento"><strong class="table-primary">${escapeHTML(batch.medicamentoNombre)}</strong></td><td data-label="Lote">${escapeHTML(batch.codigoLote)}</td><td data-label="Vencimiento">${formatDate(batch.fechaVencimiento)}</td><td data-label="Unidades"><strong>${batch.stock.toLocaleString("es-CO")}</strong></td><td data-label="Costo">${formatMoney(batch.costoUnitario)}</td><td data-label="Precio">${formatMoney(batch.precioVenta)}</td><td data-label="Disponibilidad">${batchStatus(batch)}</td><td data-label="Acciones" class="actions-cell"><button class="icon-button" data-action="view-batch" data-id="${escapeHTML(batch.id)}" aria-label="Ver lote">${icon("eye")}</button>${canWrite() ? `<button class="icon-button" data-action="edit-batch" data-id="${escapeHTML(batch.id)}" aria-label="Editar lote">${icon("edit")}</button>` : ""}${state.user.rol === "administrador" ? `<button class="icon-button danger-icon" data-action="delete-batch" data-id="${escapeHTML(batch.id)}" aria-label="Eliminar lote">${icon("trash")}</button>` : ""}</td></tr>`).join("")}</tbody></table></div>${paginationBar("batches", batchPage)}` : emptyState(emptyTitle, emptyMessage)}
     </section>
     ${state.alerts.length ? `<section class="panel alerts-panel"><div class="panel-heading"><div><h2>Alertas de vencimiento</h2><p>Lotes vencidos o con vencimiento próximo.</p></div></div><div class="alert-list">${state.alerts.map(alertRow).join("")}</div></section>` : ""}`;
 }
@@ -1000,10 +1049,10 @@ function renderSalePreview() {
 }
 
 function matchingSaleMedications(query) {
-  const search = query.trim().toLocaleLowerCase("es");
+  const search = normalizeSearchText(query).trim();
   if (!search) return [];
   return state.medications.filter((item) => item.activo
-    && `${item.nombre} ${item.codigo} ${item.principioActivo}`.toLocaleLowerCase("es").includes(search))
+    && normalizeSearchText(`${item.nombre} ${item.codigo} ${item.principioActivo}`).includes(search))
     .slice(0, 8);
 }
 
@@ -1579,6 +1628,16 @@ app.addEventListener("click", async (event) => {
     try {
       await soapCall("DeactivateMedication", { id });
       await finishMutation("Medicamento desactivado.");
+    } catch (error) {
+      notify(error.message);
+    }
+    return;
+  }
+  if (action === "activate-medication") {
+    if (!window.confirm("¿Reactivar este medicamento? Volverá a estar disponible para las operaciones.")) return;
+    try {
+      await soapCall("ActivateMedication", { id });
+      await finishMutation("Medicamento reactivado correctamente.");
     } catch (error) {
       notify(error.message);
     }

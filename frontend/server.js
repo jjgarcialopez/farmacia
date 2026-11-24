@@ -57,5 +57,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(port, () => {
-  console.log(`FarmaSalud Popayán disponible en el puerto ${port}`);
+  console.log(`Farmacias Vital Salud disponible en el puerto ${port}`);
 });

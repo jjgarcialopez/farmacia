@@ -26,6 +26,8 @@ test("WSDL exposes explicit pharmacy SOAP operations, not the legacy generic act
     "ActivateUser",
     "ListMedications",
     "CreateMedication",
+    "DeactivateMedication",
+    "ActivateMedication",
     "ListBatches",
     "CreateBatch",
     "ListExpirationAlerts",
