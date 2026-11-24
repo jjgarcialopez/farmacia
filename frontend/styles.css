@@ -767,6 +767,10 @@ td { border-color: #eee9e4; color: #66655d; }
   .not-found-ground { bottom: 31px; }
   .not-found-caption { bottom: 12px; }
 }
+.movement-table thead th { position: static; top: auto; z-index: auto; }
+.movement-table tbody tr.movement-latest-row td { background: #f0f1df; }
+.movement-table tbody tr.movement-latest-row td:first-child { border-left: 3px solid var(--lime); }
+.movement-latest-label { display: inline-flex; align-items: center; margin-left: 8px; padding: 3px 7px; border-radius: 20px; background: var(--lime); color: var(--olive); font-size: 8px; font-weight: 800; letter-spacing: .3px; vertical-align: middle; white-space: nowrap; }
 .sale-guidance-icon { background: var(--lime); color: var(--olive); }
 .sale-preview-total { background: #f0f1df; color: var(--olive); }
 .sale-preview-total strong, .chart-total { color: var(--olive); }

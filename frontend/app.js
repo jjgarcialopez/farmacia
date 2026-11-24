@@ -796,6 +796,14 @@ function batchStatus(batch) {
 
 function renderMovements() {
   const action = state.route === "inventario" ? `<div class="tab-row">${inventoryTabs()}</div>` : "";
+  const movementRows = state.movements.map((item, index) => {
+    const isLatest = index === 0;
+    const latestLabel = isLatest ? '<span class="movement-latest-label">Más reciente</span>' : "";
+    const typeTone = item.tipo === "entrada" || item.tipo === "reversión"
+      ? "status-good"
+      : item.tipo === "ajuste" ? "status-warning" : "status-neutral";
+    return `<tr class="${isLatest ? "movement-latest-row" : ""}"><td>${formatDateTime(item.fecha)}${latestLabel}</td><td>${escapeHTML(item.loteId)}</td><td>${escapeHTML(item.ventaId || "—")}</td><td><span class="status ${typeTone}">${escapeHTML(item.tipo)}</span></td><td>${item.cantidad}</td><td>${item.stockAntes}</td><td>${item.stockDespues}</td><td>${escapeHTML(item.motivo)}</td><td><span class="user-display"><strong>${escapeHTML(item.usuarioNombre || "Usuario no disponible")}</strong><small>${escapeHTML(item.usuarioRol || "Rol no disponible")}</small></span></td></tr>`;
+  }).join("");
   return `
     ${pageHeading("TRAZABILIDAD", "Movimientos de inventario", `${state.movements.length} movimientos encontrados.`)}
     ${action}
@@ -810,7 +818,7 @@ function renderMovements() {
       </form>
     </section>
     <section class="panel list-panel">
-      ${state.movements.length ? `<div class="table-wrap"><table><thead><tr><th>FECHA</th><th>LOTE</th><th>VENTA</th><th>TIPO</th><th>CANTIDAD</th><th>STOCK ANTES</th><th>STOCK DESPUÉS</th><th>MOTIVO</th><th>REALIZADO POR</th></tr></thead><tbody>${state.movements.map((item) => `<tr><td>${formatDateTime(item.fecha)}</td><td>${escapeHTML(item.loteId)}</td><td>${escapeHTML(item.ventaId || "—")}</td><td><span class="status ${item.tipo === "entrada" || item.tipo === "reversión" ? "status-good" : item.tipo === "ajuste" ? "status-warning" : "status-neutral"}">${escapeHTML(item.tipo)}</span></td><td>${item.cantidad}</td><td>${item.stockAntes}</td><td>${item.stockDespues}</td><td>${escapeHTML(item.motivo)}</td><td><span class="user-display"><strong>${escapeHTML(item.usuarioNombre || "Usuario no disponible")}</strong><small>${escapeHTML(item.usuarioRol || "Rol no disponible")}</small></span></td></tr>`).join("")}</tbody></table></div>` : emptyState("No hay movimientos", "Al registrar lotes, ajustes o ventas, verás su historial aquí.")}
+      ${state.movements.length ? `<div class="table-wrap"><table class="movement-table"><thead><tr><th>FECHA</th><th>LOTE</th><th>VENTA</th><th>TIPO</th><th>CANTIDAD</th><th>STOCK ANTES</th><th>STOCK DESPUÉS</th><th>MOTIVO</th><th>REALIZADO POR</th></tr></thead><tbody>${movementRows}</tbody></table></div>` : emptyState("No hay movimientos", "Al registrar lotes, ajustes o ventas, verás su historial aquí.")}
     </section>`;
 }
 
