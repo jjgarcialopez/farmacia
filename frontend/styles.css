@@ -95,6 +95,9 @@ button { cursor: pointer; }
 .topbar-right { display: flex; align-items: center; gap: 16px; }
 .today { color: #839189; font-size: 10px; text-transform: capitalize; }
 .topbar-avatar { width: 31px; height: 31px; flex-basis: 31px; }
+.mobile-logout { display: none; width: 32px; height: 32px; flex: 0 0 32px; place-items: center; padding: 0; border: 1px solid #d4af9f; border-radius: 8px; background: transparent; color: var(--olive); }
+.mobile-logout .icon { width: 16px; height: 16px; }
+.mobile-logout:hover { background: #f4e9e3; }
 .page-content { max-width: 1440px; margin: 0 auto; padding: 35px 40px 42px; }
 .page-heading { display: flex; min-height: 93px; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 23px; }
 .page-heading h1 { margin: 8px 0 5px; color: #1b382f; font: 800 27px/1.2 "Segoe UI", Arial, sans-serif; letter-spacing: -.8px; }
@@ -217,10 +220,12 @@ tbody tr:last-child td { border-bottom: 0; }
   .nav-count { position: absolute; top: 2px; right: calc(50% - 22px); min-width: 15px; height: 15px; font-size: 8px; }
   .main-area { width: 100%; margin-left: 0; padding-bottom: 66px; }
   .topbar { height: 59px; padding: 0 17px; }
-  .topbar .mobile-brand { display: inline-flex; font-size: 15px; }
+  .topbar .mobile-brand { display: inline-flex; min-width: 0; flex: 0 1 auto; gap: 8px; font-size: clamp(11px, 3.8vw, 15px); }
+  .topbar .mobile-brand > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .topbar .brand-mark { width: 29px; height: 29px; flex-basis: 29px; }
   .breadcrumb, .today { display: none; }
-  .topbar-right { margin-left: auto; }
+  .topbar-right { flex: 0 0 auto; gap: 8px; margin-left: auto; }
+  .mobile-logout { display: grid; }
   .page-content { padding: 24px 16px 27px; }
   .page-heading { min-height: 0; align-items: flex-start; margin-bottom: 19px; }
   .page-heading h1 { font-size: 24px; }

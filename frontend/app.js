@@ -588,7 +588,7 @@ function renderShell() {
         </div>
       </aside>
       <main class="main-area">
-        <header class="topbar"><div class="mobile-brand">${brandMark()}<span>Farmacias Vital Salud</span></div><div class="breadcrumb">Panel <span>/</span> <strong>${titles[state.route]}</strong></div><div class="topbar-right"><span class="connection-status ${state.connection}" title="${state.connection === "connected" ? "Backend y base de datos disponibles" : "Conexión no disponible"}"><i></i>${state.connection === "connected" ? "Conectado" : state.connection === "checking" ? "Verificando" : "Sin conexión"}</span><span class="today">${new Date().toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" })}</span><span class="topbar-avatar">${initials()}</span></div></header>
+        <header class="topbar"><div class="mobile-brand">${brandMark()}<span>Farmacias Vital Salud</span></div><div class="breadcrumb">Panel <span>/</span> <strong>${titles[state.route]}</strong></div><div class="topbar-right"><span class="connection-status ${state.connection}" title="${state.connection === "connected" ? "Backend y base de datos disponibles" : "Conexión no disponible"}"><i></i>${state.connection === "connected" ? "Conectado" : state.connection === "checking" ? "Verificando" : "Sin conexión"}</span><span class="today">${new Date().toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" })}</span><button type="button" class="mobile-logout" id="mobile-logout" aria-label="Cerrar sesión" title="Cerrar sesión">${icon("logout")}</button><span class="topbar-avatar">${initials()}</span></div></header>
         <section class="page-content">${renderRoute()}</section>
       </main>
       ${state.toast ? `<div class="toast" role="status">${icon("check")}${escapeHTML(state.toast)}</div>` : ""}
@@ -607,12 +607,14 @@ function renderShell() {
     }
     renderShell();
   }));
-  app.querySelector("#logout").addEventListener("click", () => {
+  const logout = () => {
     state.token = "";
     state.user = null;
     sessionStorage.removeItem("verdesalud.session");
     renderLogin();
-  });
+  };
+  app.querySelector("#logout").addEventListener("click", logout);
+  app.querySelector("#mobile-logout").addEventListener("click", logout);
   if (state.modal) {
     window.setTimeout(() => {
       const modal = app.querySelector(".modal");
