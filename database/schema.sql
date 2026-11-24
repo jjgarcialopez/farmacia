@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
         CHECK (BTRIM(correo) <> '' AND correo = LOWER(BTRIM(correo))),
     password_hash TEXT NOT NULL CHECK (BTRIM(password_hash) <> ''),
     rol VARCHAR(20) NOT NULL
-        CHECK (rol IN ('administrador', 'operador', 'consulta', 'auditor')),
+        CHECK (rol IN ('administrador', 'farmaceutico', 'consulta', 'vendedor')),
     activo BOOLEAN NOT NULL DEFAULT TRUE,
     creado_en TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -105,6 +105,12 @@ CREATE TABLE IF NOT EXISTS inventario (
         FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
         ON UPDATE CASCADE ON DELETE RESTRICT
 );
+
+ALTER TABLE usuarios DROP CONSTRAINT IF EXISTS usuarios_rol_check;
+UPDATE usuarios SET rol = 'farmaceutico' WHERE rol = 'operador';
+UPDATE usuarios SET rol = 'vendedor' WHERE rol = 'auditor';
+ALTER TABLE usuarios ADD CONSTRAINT usuarios_rol_check
+    CHECK (rol IN ('administrador', 'farmaceutico', 'consulta', 'vendedor'));
 
 CREATE INDEX IF NOT EXISTS idx_usuarios_rol_activo
     ON usuarios (rol, activo);

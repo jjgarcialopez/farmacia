@@ -19,6 +19,8 @@ El esquema acordado no incluye auditoría, por lo que tampoco se exponen operaci
    ```
 
 2. Conéctate a `farmacia` y ejecuta `database/schema.sql`.
+   Si la base ya existe, vuelve a ejecutar el archivo para migrar los roles
+   `operador` a `farmaceutico` y `auditor` a `vendedor`.
 3. Copia `backend/.env.example` como `backend/.env` y configura la conexión:
 
    ```env
@@ -62,16 +64,18 @@ El esquema acordado no incluye auditoría, por lo que tampoco se exponen operaci
 </soapenv:Header>
 ```
 
-Los roles son `administrador`, `operador`, `consulta` y `auditor`. El backend verifica el token y consulta el estado y rol actuales del usuario en PostgreSQL en cada operación protegida. Los usuarios inactivos no pueden iniciar ni mantener sesión. Las contraseñas nuevas requieren al menos 12 caracteres y se almacenan con bcrypt. Las cuentas creadas o cuyo correo se actualice mediante la gestión de usuarios deben usar el dominio corporativo `@farmacia.com`.
+Los roles son `administrador`, `farmaceutico`, `consulta` y `vendedor`. El backend verifica el token y consulta el estado y rol actuales del usuario en PostgreSQL en cada operación protegida. Los usuarios inactivos no pueden iniciar ni mantener sesión. Las contraseñas nuevas requieren al menos 12 caracteres y se almacenan con bcrypt. Las cuentas creadas o cuyo correo se actualice mediante la gestión de usuarios deben usar el dominio corporativo `@farmacia.com`.
 
-| Operación | administrador | operador | consulta | auditor |
+| Operación | administrador | farmaceutico | consulta | vendedor |
 |---|---:|---:|---:|---:|
 | Consultar medicamentos y lotes | Sí | Sí | Sí | Sí |
 | Crear o actualizar medicamentos y lotes | Sí | Sí | No | No |
-| Activar o desactivar medicamentos / eliminar lotes | Sí | No | No | No |
-| Consultar inventario | Sí | Sí | No | Sí |
-| Consultar ventas | Sí | Sí | Sí | Sí |
-| Crear o revertir ventas | Sí | Sí | No | No |
+| Activar o desactivar medicamentos / eliminar lotes | Sí | Sí | No | No |
+| Consultar existencias | Sí | Sí | Sí | Sí |
+| Actualizar cantidades y consultar movimientos | Sí | Sí | No | No |
+| Consultar ventas | Todas | No | Todas | Solo las propias |
+| Crear ventas | Sí | No | No | Sí |
+| Revertir ventas | Sí | No | No | No |
 | Gestionar usuarios | Sí | No | No | No |
 
 ## Operaciones SOAP

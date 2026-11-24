@@ -6,18 +6,18 @@ process.env.JWT_SECRET = "unit-test-only-secret-with-at-least-32-bytes";
 const { config } = await import("../src/config.js");
 const { createSalesOperations } = await import("../src/services/sales.js");
 
-const operator = {
+const vendor = {
   id: "7",
-  nombre: "Operador",
-  correo: "operador@farmacia.com",
-  rol: "operador",
+  nombre: "Vendedor",
+  correo: "vendedor@farmacia.com",
+  rol: "vendedor",
   activo: true,
 };
 const headers = {
   AuthHeader: {
     token: jwt.sign({}, config.jwtSecret, {
       algorithm: "HS256",
-      subject: operator.id,
+      subject: vendor.id,
       issuer: config.jwtIssuer,
     }),
   },
@@ -25,7 +25,7 @@ const headers = {
 
 function authQuery(sql) {
   if (sql.includes("FROM usuarios") && sql.includes("WHERE id = $1")) {
-    return { rows: [operator], rowCount: 1 };
+    return { rows: [vendor], rowCount: 1 };
   }
   throw new Error(`Unexpected pool query: ${sql}`);
 }
@@ -102,7 +102,7 @@ test("creates a sale from the same FEFO preview allocations", async () => {
     id: "101",
     numero: "V-2026-101",
     usuario_id: "7",
-    usuario_nombre: "Operador",
+    usuario_nombre: "Vendedor",
     fecha: new Date("2026-11-23T12:00:00.000Z"),
     total: "5.00",
     estado: "confirmada",
@@ -176,7 +176,7 @@ test("gets sale detail with medication names", async () => {
             id: "101",
             numero: "V-2026-101",
             usuario_id: "7",
-            usuario_nombre: "Operador",
+            usuario_nombre: "Vendedor",
             fecha: new Date("2026-11-23T12:00:00.000Z"),
             total: "5.00",
             estado: "confirmada",
@@ -223,7 +223,7 @@ test("searches sales by number, cashier, and product while returning summary fie
             id: "101",
             numero: "V-2026-101",
             usuario_id: "7",
-            usuario_nombre: "Operador",
+            usuario_nombre: "Vendedor",
             cantidad_productos: 2,
             fecha: new Date("2026-11-23T12:00:00.000Z"),
             total: "25.00",
@@ -245,9 +245,76 @@ test("searches sales by number, cashier, and product while returning summary fie
   }, null, headers);
 
   assert.equal(result.total, 1);
-  assert.equal(result.sales.sale[0].usuarioNombre, "Operador");
+  assert.equal(result.sales.sale[0].usuarioNombre, "Vendedor");
   assert.equal(result.sales.sale[0].cantidadProductos, 2);
   assert.ok(queries.every(({ sql }) => sql.includes("ILIKE")));
+  assert.ok(queries.every(({ sql }) => sql.includes("v.usuario_id = $1")));
+  assert.ok(queries.every(({ values }) => values[0] === vendor.id));
   assert.ok(queries.some(({ sql }) => sql.includes("sm.principio_activo ILIKE")));
   assert.ok(queries.every(({ values }) => values.includes("%Acetaminofén%")));
+});
+
+test("a vendor cannot read another user's sale", async () => {
+  const pool = {
+    async query(sql) {
+      if (sql.includes("FROM usuarios") && sql.includes("WHERE id = $1")) return authQuery(sql);
+      if (sql.includes("FROM ventas v")) {
+        return {
+          rows: [{
+            id: "101",
+            numero: "V-2026-101",
+            usuario_id: "8",
+            usuario_nombre: "Otro vendedor",
+            fecha: new Date("2026-11-23T12:00:00.000Z"),
+            total: "5.00",
+            estado: "confirmada",
+          }],
+          rowCount: 1,
+        };
+      }
+      if (sql.includes("FROM detalle_venta dv")) return { rows: [], rowCount: 0 };
+      throw new Error(`Unexpected pool query: ${sql}`);
+    },
+  };
+
+  await assert.rejects(
+    createSalesOperations({ pool }).GetSale({ id: "101" }, null, headers),
+    (error) => {
+      assert.match(error.Fault.Reason.Text, /FORBIDDEN/);
+      return true;
+    },
+  );
+});
+
+test("a vendor cannot reverse sales", async () => {
+  await assert.rejects(
+    createSalesOperations({
+      pool: { query: async (sql) => sql.includes("FROM usuarios") ? authQuery(sql) : { rows: [], rowCount: 0 } },
+      withTransaction: async () => { throw new Error("Vendor must not start a reversal transaction"); },
+    }).ReverseSale({ id: "101" }, null, headers),
+    (error) => {
+      assert.match(error.Fault.Reason.Text, /FORBIDDEN/);
+      return true;
+    },
+  );
+});
+
+test("a pharmacist cannot access the sales module", async () => {
+  const pharmacist = { ...vendor, rol: "farmaceutico" };
+  const pool = {
+    async query(sql) {
+      if (sql.includes("FROM usuarios") && sql.includes("WHERE id = $1")) {
+        return { rows: [pharmacist], rowCount: 1 };
+      }
+      throw new Error(`Unexpected pool query: ${sql}`);
+    },
+  };
+
+  await assert.rejects(
+    createSalesOperations({ pool }).ListSales({}, null, headers),
+    (error) => {
+      assert.match(error.Fault.Reason.Text, /FORBIDDEN/);
+      return true;
+    },
+  );
 });

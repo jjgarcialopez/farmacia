@@ -16,8 +16,8 @@ import {
   notFound,
 } from "./common.js";
 
-const READ_ROLES = ["administrador", "operador", "consulta", "auditor"];
-const WRITE_ROLES = ["administrador", "operador"];
+const READ_ROLES = ["administrador", "farmaceutico", "consulta", "vendedor"];
+const WRITE_ROLES = ["administrador", "farmaceutico"];
 const BATCH_FROM = "lotes l JOIN medicamentos m ON m.id = l.medicamento_id";
 const BATCH_SELECT = `l.id, l.medicamento_id, m.nombre AS medicamento_nombre,
   l.codigo_lote, l.fecha_vencimiento, l.stock, l.costo_unitario, l.precio_venta`;
@@ -189,7 +189,7 @@ export function createBatchOperations({ pool, withTransaction }) {
     }),
 
     DeleteBatch: operation("DeleteBatch", async (args, headers) => {
-      await requireRoles(headers, pool, ["administrador"]);
+      await requireRoles(headers, pool, WRITE_ROLES);
       const id = positiveId(args.id);
       await withTransaction(async (client) => {
         const existing = await client.query("SELECT id FROM lotes WHERE id = $1 FOR UPDATE", [id]);

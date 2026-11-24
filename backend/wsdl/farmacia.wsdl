@@ -11,9 +11,9 @@
       <xsd:simpleType name="RoleType">
         <xsd:restriction base="xsd:string">
           <xsd:enumeration value="administrador"/>
-          <xsd:enumeration value="operador"/>
+          <xsd:enumeration value="farmaceutico"/>
           <xsd:enumeration value="consulta"/>
-          <xsd:enumeration value="auditor"/>
+          <xsd:enumeration value="vendedor"/>
         </xsd:restriction>
       </xsd:simpleType>
       <xsd:simpleType name="SaleStateType">

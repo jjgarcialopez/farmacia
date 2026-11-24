@@ -3,8 +3,8 @@ import { requireRoles } from "../auth.js";
 import { boolean, money, pagination, positiveId, text } from "../validation.js";
 import { mapMedication, operation, pageQuery, notFound } from "./common.js";
 
-const READ_ROLES = ["administrador", "operador", "consulta", "auditor"];
-const WRITE_ROLES = ["administrador", "operador"];
+const READ_ROLES = ["administrador", "farmaceutico", "consulta", "vendedor"];
+const WRITE_ROLES = ["administrador", "farmaceutico"];
 const SELECT_MEDICATION = `id, codigo, nombre, principio_activo, presentacion,
   requiere_formula, precio_referencia, activo, creado_en`;
 
@@ -106,7 +106,7 @@ export function createMedicationOperations({ pool }) {
     }),
 
     DeactivateMedication: operation("DeactivateMedication", async (args, headers) => {
-      await requireRoles(headers, pool, ["administrador"]);
+      await requireRoles(headers, pool, WRITE_ROLES);
       const id = positiveId(args.id);
       const result = await pool.query(
         `UPDATE medicamentos SET activo = FALSE
@@ -119,7 +119,7 @@ export function createMedicationOperations({ pool }) {
     }),
 
     ActivateMedication: operation("ActivateMedication", async (args, headers) => {
-      await requireRoles(headers, pool, ["administrador"]);
+      await requireRoles(headers, pool, WRITE_ROLES);
       const id = positiveId(args.id);
       const result = await pool.query(
         `UPDATE medicamentos SET activo = TRUE

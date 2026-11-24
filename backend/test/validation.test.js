@@ -7,6 +7,8 @@ import {
   money,
   pagination,
   positiveId,
+  role,
+  roles,
 } from "../src/validation.js";
 
 test("validates positive identifiers and strict boolean filters", () => {
@@ -17,9 +19,17 @@ test("validates positive identifiers and strict boolean filters", () => {
   assert.throws(() => boolean("yes", "activo"), /true o false/);
 });
 
+test("accepts the configured roles and rejects renamed legacy roles", () => {
+  assert.deepEqual(roles, ["administrador", "farmaceutico", "consulta", "vendedor"]);
+  assert.equal(role("farmaceutico"), "farmaceutico");
+  assert.equal(role("vendedor"), "vendedor");
+  assert.throws(() => role("operador"), /rol no es válido/);
+  assert.throws(() => role("auditor"), /rol no es válido/);
+});
+
 test("restricts managed user emails to the corporate domain", () => {
-  assert.equal(corporateEmail("Auditor@farmacia.com"), "auditor@farmacia.com");
-  assert.throws(() => corporateEmail("auditor@example.com"), /dominio @farmacia\.com/);
+  assert.equal(corporateEmail("Farmaceutico@farmacia.com"), "farmaceutico@farmacia.com");
+  assert.throws(() => corporateEmail("farmaceutico@example.com"), /dominio @farmacia\.com/);
 });
 
 test("validates money precision, ISO dates, and pagination boundaries", () => {

@@ -60,12 +60,44 @@ test("reactivates an inactive medication for administrators", async () => {
   assert.equal(result.medication.id, "21");
 });
 
-test("restricts medication reactivation to administrators", async () => {
-  const operator = { ...administrator, id: "7", rol: "operador" };
+test("allows a pharmacist to reactivate an inactive medication", async () => {
+  const pharmacist = { ...administrator, id: "7", rol: "farmaceutico" };
+  let activated = false;
   const pool = {
     async query(sql) {
       if (sql.includes("FROM usuarios") && sql.includes("WHERE id = $1")) {
-        return { rows: [operator], rowCount: 1 };
+        return { rows: [pharmacist], rowCount: 1 };
+      }
+      if (sql.includes("UPDATE medicamentos SET activo = TRUE")) {
+        activated = true;
+        return { rows: [{
+          id: "21",
+          codigo: "MED-21",
+          nombre: "Acetaminofén",
+          principio_activo: "Acetaminofén",
+          presentacion: "Tableta",
+          requiere_formula: false,
+          precio_referencia: "1.50",
+          activo: true,
+          creado_en: new Date("2026-01-01T00:00:00.000Z"),
+        }], rowCount: 1 };
+      }
+      throw new Error(`Unexpected pool query: ${sql}`);
+    },
+  };
+  const result = await createMedicationOperations({ pool })
+    .ActivateMedication({ id: "21" }, null, authHeaders("7"));
+
+  assert.equal(activated, true);
+  assert.equal(result.success, true);
+});
+
+test("restricts medication reactivation to users with catalog permissions", async () => {
+  const readonlyUser = { ...administrator, id: "7", rol: "consulta" };
+  const pool = {
+    async query(sql) {
+      if (sql.includes("FROM usuarios") && sql.includes("WHERE id = $1")) {
+        return { rows: [readonlyUser], rowCount: 1 };
       }
       throw new Error(`Unexpected pool query: ${sql}`);
     },

@@ -198,7 +198,7 @@ Los metodos de administracion de usuarios requieren el rol administrador.
   <farm:UpdateUser>
     <farm:id>{{userId}}</farm:id>
     <farm:nombre>Usuario Postman Actualizado</farm:nombre>
-    <farm:rol>auditor</farm:rol>
+    <farm:rol>vendedor</farm:rol>
   </farm:UpdateUser>
 
   Esperado: respuesta con los campos actualizados.
@@ -225,9 +225,9 @@ Pruebas negativas de usuarios:
 
 5. MEDICAMENTOS
 ---------------
-Lectura: administrador, operador, consulta y auditor.
-Creacion y actualizacion: administrador y operador.
-Activacion y desactivacion: solo administrador.
+Lectura: administrador, farmaceutico, consulta y vendedor.
+Creacion y actualizacion: administrador y farmaceutico.
+Activacion y desactivacion: administrador y farmaceutico.
 
 5.1 ListMedications
   SOAPAction: "urn:farmacia:v1#ListMedications"
@@ -300,9 +300,9 @@ Activacion y desactivacion: solo administrador.
 
 6. LOTES Y ALERTAS DE VENCIMIENTO
 ---------------------------------
-Lectura: administrador, operador, consulta y auditor.
-Creacion y actualizacion: administrador y operador.
-Eliminacion: solo administrador; no se eliminan lotes con historial.
+Lectura: administrador, farmaceutico, consulta y vendedor.
+Creacion, actualizacion y eliminacion: administrador y farmaceutico.
+No se eliminan lotes con historial.
 
 6.1 ListBatches
   SOAPAction: "urn:farmacia:v1#ListBatches"
@@ -381,7 +381,7 @@ Eliminacion: solo administrador; no se eliminan lotes con historial.
 
 7. MOVIMIENTOS DE INVENTARIO
 ----------------------------
-Roles permitidos: administrador, operador y auditor.
+Roles permitidos: administrador y farmaceutico.
 
 7.1 ListInventoryMovements
   SOAPAction: "urn:farmacia:v1#ListInventoryMovements"
@@ -412,8 +412,9 @@ Roles permitidos: administrador, operador y auditor.
 
 8. VENTAS
 ---------
-Lectura: administrador, operador, consulta y auditor.
-Previsualizar, crear y revertir: administrador y operador.
+Lectura: administrador y consulta pueden leer todas las ventas;
+vendedor solo puede consultar sus propias ventas.
+Previsualizar y crear: administrador y vendedor. Revertir: solo administrador.
 
 8.1 PreviewSale
   SOAPAction: "urn:farmacia:v1#PreviewSale"
@@ -487,10 +488,11 @@ Casos negativos de ventas:
 9.3 Permisos
   - Con rol consulta: puede listar medicamentos, lotes y ventas; no puede
     crear o actualizar datos.
-  - Con rol operador: puede crear/actualizar medicamentos y lotes, y crear o
-    revertir ventas; no puede gestionar usuarios ni activar/desactivar
-    medicamentos.
-  - Con rol auditor: puede consultar movimientos, pero no escribir.
+  - Con rol farmaceutico: puede gestionar medicamentos y lotes, actualizar
+    existencias y consultar movimientos; no puede vender ni gestionar usuarios.
+  - Con rol vendedor: puede consultar medicamentos y existencias, registrar
+    ventas y consultar solo sus propias ventas; no puede ajustar stock ni
+    revertir ventas.
   - Con rol administrador: puede ejecutar operaciones administrativas.
   Las operaciones no autorizadas deben responder con SOAP Fault FORBIDDEN.
 

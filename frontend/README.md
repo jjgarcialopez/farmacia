@@ -33,10 +33,10 @@ El frontend está preparado para desplegarse como un servicio web de Node.js ind
 ## Módulos
 
 - **Resumen:** indicadores de medicamentos, existencias, vencimientos y ventas recientes.
-- **Medicamentos:** consulta y búsqueda por nombre, código o principio activo, detalle, creación, edición y activación/desactivación; estas acciones están reservadas al administrador.
-- **Inventario:** consulta y detalle de lotes, registro y edición, ajustes de existencias con motivo, y eliminación de lotes sin historial (administrador).
-- **Movimientos:** filtros por lote, venta, tipo y fechas, con nombre y rol del usuario que realizó cada movimiento; disponible para administrador, operador y auditor.
-- **Ventas:** historial con búsqueda por venta, usuario o medicamento; filtros por estado y fechas con periodos rápidos; indicadores comparables con el periodo anterior; cotización de productos, cantidades, precios por lote y stock antes de confirmar; comprobante imprimible; y reversión de ventas confirmadas.
+- **Medicamentos:** consulta para todos los roles; gestión y activación/desactivación para administrador y farmacéutico.
+- **Inventario:** consulta de existencias para todos los roles; registro, edición y ajuste de cantidades para administrador y farmacéutico.
+- **Movimientos:** filtros por lote, venta, tipo y fechas, con nombre y rol del usuario que realizó cada movimiento; disponible para administrador y farmacéutico.
+- **Ventas:** administrador y consulta pueden leer el historial; el vendedor registra ventas y solo consulta las propias; la reversión está reservada al administrador. El farmacéutico no tiene acceso al módulo de ventas.
 - **Usuarios:** consulta, creación con usuario único sugerido desde el nombre y dominio fijo `@farmacia.com`, edición de datos, roles y contraseña, y desactivación/reactivación (administrador). El correo debe ser único; se permiten varios usuarios con el mismo rol.
 
 La interfaz muestra acciones según el rol, pero el backend vuelve a validar cada permiso. Las listas recorren las páginas del servicio, cuyo tamaño máximo es 100. El frontend usa un servidor estático basado en módulos nativos y mantiene sus dependencias separadas de las del backend. La sesión se conserva únicamente en la pestaña actual.

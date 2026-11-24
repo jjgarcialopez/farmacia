@@ -1,6 +1,6 @@
 import { AppError } from "./errors.js";
 
-export const roles = ["administrador", "operador", "consulta", "auditor"];
+export const roles = ["administrador", "farmaceutico", "consulta", "vendedor"];
 export const saleStates = ["confirmada", "revertida"];
 export const movementTypes = ["entrada", "salida", "ajuste", "reversión"];
 

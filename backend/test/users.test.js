@@ -32,7 +32,7 @@ function authQuery(sql) {
 }
 
 test("reactivates an inactive user through the administrator operation", async () => {
-  const inactive = { ...admin, id: "2", rol: "operador", activo: false };
+  const inactive = { ...admin, id: "2", rol: "farmaceutico", activo: false };
   let activated = false;
   const client = {
     async query(sql) {
@@ -78,14 +78,14 @@ test("allows distinct user accounts to share the same role", async () => {
   const createUser = createUserOperations({ pool }).CreateUser;
 
   for (const [nombre, correo] of [
-    ["Operador Uno", "operador.uno@farmacia.com"],
-    ["Operador Dos", "operador.dos@farmacia.com"],
+    ["Farmaceutico Uno", "farmaceutico.uno@farmacia.com"],
+    ["Farmaceutico Dos", "farmaceutico.dos@farmacia.com"],
   ]) {
-    await createUser({ nombre, correo, password: "ClaveSegura2026!", rol: "operador" }, null, headers);
+    await createUser({ nombre, correo, password: "ClaveSegura2026!", rol: "farmaceutico" }, null, headers);
   }
 
   assert.equal(insertedUsers.length, 2);
-  assert.deepEqual(insertedUsers.map((user) => user.rol), ["operador", "operador"]);
+  assert.deepEqual(insertedUsers.map((user) => user.rol), ["farmaceutico", "farmaceutico"]);
 });
 
 test("explains that a duplicate corporate email may belong to an inactive account", async () => {
@@ -102,10 +102,10 @@ test("explains that a duplicate corporate email may belong to an inactive accoun
 
   await assert.rejects(
     createUser({
-      nombre: "Operador",
-      correo: "operador@farmacia.com",
+      nombre: "Farmaceutico",
+      correo: "farmaceutico@farmacia.com",
       password: "ClaveSegura2026!",
-      rol: "operador",
+      rol: "farmaceutico",
     }, null, headers),
     (error) => {
       assert.match(error.Fault.Reason.Text, /El rol puede repetirse, pero el correo debe ser único/);

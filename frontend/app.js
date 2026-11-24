@@ -4,7 +4,7 @@ const API_URL = window.APP_CONFIG?.apiUrl || "http://localhost:4000/soap";
 const HEALTH_URL = window.APP_CONFIG?.healthUrl || "http://localhost:4000/health";
 const SESSION_WARNING_MS = (window.APP_CONFIG?.sessionWarningMinutes || 5) * 60_000;
 const PAGE_SIZE = 100;
-const ROLES = ["administrador", "operador", "consulta", "auditor"];
+const ROLES = ["administrador", "farmaceutico", "consulta", "vendedor"];
 const state = {
   token: "",
   user: null,
@@ -248,8 +248,16 @@ async function listAll(operation, wrapper, itemName, filters = {}) {
   return items;
 }
 
-function canWrite() {
-  return ["administrador", "operador"].includes(state.user?.rol);
+function canManageCatalog() {
+  return ["administrador", "farmaceutico"].includes(state.user?.rol);
+}
+
+function canSell() {
+  return ["administrador", "vendedor"].includes(state.user?.rol);
+}
+
+function canReadSales() {
+  return ["administrador", "consulta", "vendedor"].includes(state.user?.rol);
 }
 
 function canAdministerUsers() {
@@ -257,7 +265,7 @@ function canAdministerUsers() {
 }
 
 function canReadInventoryMovements() {
-  return ["administrador", "operador", "auditor"].includes(state.user?.rol);
+  return ["administrador", "farmaceutico"].includes(state.user?.rol);
 }
 
 async function login(correo, password) {
@@ -281,7 +289,7 @@ async function loadData() {
     listAll("ListMedications", "medications", "medication"),
     listAll("ListBatches", "batches", "batch"),
     listAll("ListExpirationAlerts", "alerts", "alert"),
-    listAll("ListSales", "sales", "sale"),
+    canReadSales() ? listAll("ListSales", "sales", "sale") : Promise.resolve([]),
   ]);
   state.medications = medications.map(parseMedication);
   state.batches = batches.map(parseBatch);
@@ -573,8 +581,8 @@ function renderShell() {
     ["medicamentos", "Medicamentos", "pills"],
     ["inventario", "Inventario", "box"],
     ["bodegas", "Bodegas", "warehouse"],
-    ["ventas", "Ventas", "receipt"],
   ];
+  if (canReadSales()) menu.push(["ventas", "Ventas", "receipt"]);
   if (canReadInventoryMovements()) menu.push(["movimientos", "Movimientos", "activity"]);
   if (canAdministerUsers()) menu.push(["usuarios", "Usuarios", "users"]);
   app.innerHTML = `
@@ -637,7 +645,7 @@ function renderRoute() {
     ? renderMovements()
     : renderBatches();
   if (state.route === "movimientos") return renderMovements();
-  if (state.route === "ventas") return renderSales();
+  if (state.route === "ventas") return canReadSales() ? renderSales() : renderDashboard();
   if (state.route === "usuarios" && canAdministerUsers()) return renderUsers();
   return renderDashboard();
 }
@@ -684,6 +692,7 @@ function button(label, action, className = "button button-primary", iconName = "
 }
 
 function renderDashboard() {
+  const canSeeSales = canReadSales();
   const today = new Date().toISOString().slice(0, 10);
   const todaySales = state.sales.filter((sale) => sale.estado === "confirmada" && String(sale.fecha).slice(0, 10) === today);
   const totalToday = todaySales.reduce((sum, sale) => sum + Number(sale.total), 0);
@@ -705,21 +714,21 @@ function renderDashboard() {
   const alertRows = state.alerts.slice(0, 4);
   return `
     ${pageHeading("FARMASALUD POPAYÁN", `Hola, ${escapeHTML((state.user.nombre || "").split(" ")[0])} 👋`, "Tu operación, inventario y equipo en un solo lugar.", button("Actualizar datos", "refresh", "button button-soft", "arrow"))}
-    <div class="metric-grid">
+    <div class="metric-grid ${canSeeSales ? "" : "inventory-only"}">
       ${metricCard("Medicamentos activos", state.medications.filter((item) => item.activo).length, "En tu catálogo", "pills", "green")}
       ${metricCard("Unidades disponibles", stockTotal().toLocaleString("es-CO"), `${lowStock} lotes con stock bajo`, "box", "blue")}
       ${metricCard("Por vencer", state.alerts.length, state.alerts.length ? "Revisa las alertas de inventario" : "Sin alertas de vencimiento", "receipt", "amber")}
-      ${metricCard("Ventas de hoy", formatMoney(totalToday), `${todaySales.length} transacciones confirmadas`, "arrow", "violet")}
+      ${canSeeSales ? metricCard("Ventas de hoy", formatMoney(totalToday), `${todaySales.length} transacciones confirmadas`, "arrow", "violet") : ""}
     </div>
-    <section class="panel sales-chart-panel">
+    ${canSeeSales ? `<section class="panel sales-chart-panel">
       <div class="panel-heading"><div><h2>Ventas de los últimos 7 días</h2><p>Valor confirmado por día</p></div><span class="chart-total">${formatMoney(chartDays.reduce((sum, day) => sum + day.total, 0))}</span></div>
       <div class="sales-chart" role="img" aria-label="Gráfico de ventas de los últimos siete días">${chartDays.map((day) => `<div class="chart-column"><span class="chart-value">${day.count ? formatMoney(day.total) : "—"}</span><div class="chart-track"><span style="height:${day.total ? Math.max(8, (day.total / chartMax) * 100) : 2}%"></span></div><strong>${day.label}</strong></div>`).join("")}</div>
-    </section>
-    <div class="dashboard-grid">
-      <section class="panel">
+    </section>` : ""}
+    <div class="dashboard-grid ${canSeeSales ? "" : "inventory-only"}">
+      ${canSeeSales ? `<section class="panel">
         <div class="panel-heading"><div><h2>Ventas recientes</h2><p>Últimas transacciones registradas</p></div><button class="text-button" data-route="ventas">Ver todas <span>→</span></button></div>
         ${recentSales.length ? `<div class="table-wrap"><table><thead><tr><th>VENTA</th><th>FECHA</th><th>ESTADO</th><th class="align-right">TOTAL</th></tr></thead><tbody>${recentSales.map(saleRow).join("")}</tbody></table></div>` : emptyState("Aún no hay ventas", "Cuando se registren ventas, aparecerán aquí.")}
-      </section>
+      </section>` : ""}
       <section class="panel">
         <div class="panel-heading"><div><h2>Atención próxima</h2><p>Lotes que requieren seguimiento</p></div>${state.alerts.length ? `<span class="count-pill">${state.alerts.length}</span>` : ""}</div>
         ${alertRows.length ? `<div class="alert-list">${alertRows.map(alertRow).join("")}</div><button class="text-button panel-link" data-route="inventario">Revisar inventario <span>→</span></button>` : emptyState("Todo al día", "No hay lotes próximos a vencer.")}
@@ -743,12 +752,12 @@ function renderMedications() {
   const medications = state.medications.filter((item) =>
     normalizeSearchText(`${item.nombre} ${item.codigo} ${item.principioActivo}`).includes(query));
   const medicationPage = pageRows(sortedRows(medications, "medications"), "medications", 10);
-  const action = canWrite() ? button("Agregar medicamento", "new-medication", "button button-primary", "plus") : "";
+  const action = canManageCatalog() ? button("Agregar medicamento", "new-medication", "button button-primary", "plus") : "";
   return `
     ${pageHeading("CATÁLOGO", "Medicamentos", `${state.medications.length} registros en tu catálogo.`, action)}
     <section class="panel list-panel">
       <div class="list-toolbar"><div><h2>Catálogo de medicamentos</h2><p>Consulta, registra y actualiza productos.</p></div><div class="toolbar-actions"><div class="catalog-search"><label class="search-field">${icon("search")}<input id="medicine-search" type="search" value="${escapeHTML(state.search)}" placeholder="Nombre, código o principio activo..." aria-label="Buscar por nombre, código o principio activo" autocomplete="off" /></label><span class="search-result-count" role="status">${query ? `${medications.length} ${medications.length === 1 ? "resultado" : "resultados"}` : `${state.medications.length} medicamentos`}</span></div><button class="button button-soft export-button" type="button" data-action="export-medications">${icon("print")}Exportar Excel</button></div></div>
-      ${medications.length ? `<div class="table-wrap"><table class="responsive-table"><thead><tr>${sortableHeading("medications", "nombre", "MEDICAMENTO")}${sortableHeading("medications", "codigo", "CÓDIGO")}${sortableHeading("medications", "principioActivo", "PRINCIPIO ACTIVO")}${sortableHeading("medications", "presentacion", "PRESENTACIÓN")}${sortableHeading("medications", "precioReferencia", "PRECIO REF.")}<th>FÓRMULA</th>${sortableHeading("medications", "activo", "ESTADO")}<th>ACCIONES</th></tr></thead><tbody>${medicationPage.rows.map((item) => `<tr><td data-label="Medicamento"><strong class="table-primary">${escapeHTML(item.nombre)}</strong></td><td data-label="Código">${escapeHTML(item.codigo)}</td><td data-label="Principio activo">${escapeHTML(item.principioActivo)}</td><td data-label="Presentación">${escapeHTML(item.presentacion)}</td><td data-label="Precio ref.">${formatMoney(item.precioReferencia)}</td><td data-label="Fórmula">${item.requiereFormula ? "Requiere" : "Libre"}</td><td data-label="Estado"><span class="status ${item.activo ? "status-good" : "status-neutral"}">${item.activo ? "Activo" : "Inactivo"}</span></td><td data-label="Acciones" class="actions-cell"><button class="icon-button" data-action="view-medication" data-id="${escapeHTML(item.id)}" aria-label="Ver medicamento">${icon("eye")}</button>${canWrite() ? `<button class="icon-button" data-action="edit-medication" data-id="${escapeHTML(item.id)}" aria-label="Editar medicamento">${icon("edit")}</button>` : ""}${state.user.rol === "administrador" ? item.activo ? `<button class="icon-button danger-icon" data-action="deactivate-medication" data-id="${escapeHTML(item.id)}" aria-label="Desactivar medicamento">${icon("close")}</button>` : `<button class="button button-soft activate-button" data-action="activate-medication" data-id="${escapeHTML(item.id)}" aria-label="Reactivar medicamento">${icon("check")}Reactivar</button>` : ""}</td></tr>`).join("")}</tbody></table></div>${paginationBar("medications", medicationPage)}` : emptyState(query ? "No encontramos resultados" : "Aún no hay medicamentos", query ? "Prueba con otro nombre, código o principio activo." : canWrite() ? "Agrega el primer producto de tu catálogo." : "Los medicamentos registrados aparecerán aquí.")}
+      ${medications.length ? `<div class="table-wrap"><table class="responsive-table"><thead><tr>${sortableHeading("medications", "nombre", "MEDICAMENTO")}${sortableHeading("medications", "codigo", "CÓDIGO")}${sortableHeading("medications", "principioActivo", "PRINCIPIO ACTIVO")}${sortableHeading("medications", "presentacion", "PRESENTACIÓN")}${sortableHeading("medications", "precioReferencia", "PRECIO REF.")}<th>FÓRMULA</th>${sortableHeading("medications", "activo", "ESTADO")}<th>ACCIONES</th></tr></thead><tbody>${medicationPage.rows.map((item) => `<tr><td data-label="Medicamento"><strong class="table-primary">${escapeHTML(item.nombre)}</strong></td><td data-label="Código">${escapeHTML(item.codigo)}</td><td data-label="Principio activo">${escapeHTML(item.principioActivo)}</td><td data-label="Presentación">${escapeHTML(item.presentacion)}</td><td data-label="Precio ref.">${formatMoney(item.precioReferencia)}</td><td data-label="Fórmula">${item.requiereFormula ? "Requiere" : "Libre"}</td><td data-label="Estado"><span class="status ${item.activo ? "status-good" : "status-neutral"}">${item.activo ? "Activo" : "Inactivo"}</span></td><td data-label="Acciones" class="actions-cell"><button class="icon-button" data-action="view-medication" data-id="${escapeHTML(item.id)}" aria-label="Ver medicamento">${icon("eye")}</button>${canManageCatalog() ? `<button class="icon-button" data-action="edit-medication" data-id="${escapeHTML(item.id)}" aria-label="Editar medicamento">${icon("edit")}</button>` : ""}${canManageCatalog() ? item.activo ? `<button class="icon-button danger-icon" data-action="deactivate-medication" data-id="${escapeHTML(item.id)}" aria-label="Desactivar medicamento">${icon("close")}</button>` : `<button class="button button-soft activate-button" data-action="activate-medication" data-id="${escapeHTML(item.id)}" aria-label="Reactivar medicamento">${icon("check")}Reactivar</button>` : ""}</td></tr>`).join("")}</tbody></table></div>${paginationBar("medications", medicationPage)}` : emptyState(query ? "No encontramos resultados" : "Aún no hay medicamentos", query ? "Prueba con otro nombre, código o principio activo." : canManageCatalog() ? "Agrega el primer producto de tu catálogo." : "Los medicamentos registrados aparecerán aquí.")}
     </section>
     <p class="list-footnote">Consulta hasta ${state.medications.length} medicamentos registrados.</p>`;
 }
@@ -766,16 +775,16 @@ function renderBatches() {
     normalizeSearchText(`${batch.medicamentoNombre} ${batch.codigoLote}`).includes(query));
   const medicationsWithoutBatches = matchingMedicationsWithoutBatches(state.medications, state.batches, query);
   const batchPage = pageRows(sortedRows(batches, "batches"), "batches", 10);
-  const action = canWrite() ? button("Registrar lote", "new-batch", "button button-primary", "plus") : "";
+  const action = canManageCatalog() ? button("Registrar lote", "new-batch", "button button-primary", "plus") : "";
   const emptyTitle = query
     ? medicationsWithoutBatches.length ? "Medicamento sin lotes" : "No encontramos lotes"
     : "Sin lotes registrados";
   const medicationNames = medicationsWithoutBatches.map((medication) => medication.nombre).join(", ");
   const emptyMessage = query
     ? medicationsWithoutBatches.length
-      ? `${medicationsWithoutBatches.length === 1 ? "El medicamento" : "Los medicamentos"} ${medicationNames} ${medicationsWithoutBatches.length === 1 ? "está" : "están"} en el catálogo, pero no tiene${medicationsWithoutBatches.length === 1 ? "" : "n"} lotes registrados. ${canWrite() ? "Registra un lote para agregar existencias." : "Solicita a un administrador u operador que registre un lote."}`
+      ? `${medicationsWithoutBatches.length === 1 ? "El medicamento" : "Los medicamentos"} ${medicationNames} ${medicationsWithoutBatches.length === 1 ? "está" : "están"} en el catálogo, pero no tiene${medicationsWithoutBatches.length === 1 ? "" : "n"} lotes registrados. ${canManageCatalog() ? "Registra un lote para agregar existencias." : "Solicita a un administrador o farmacéutico que registre un lote."}`
       : "Prueba con otro medicamento o código de lote."
-    : canWrite()
+    : canManageCatalog()
       ? "Registra un lote para comenzar a controlar las existencias."
       : "Los lotes registrados en el backend aparecerán en esta tabla.";
   return `
@@ -784,7 +793,7 @@ function renderBatches() {
     ${state.alerts.length ? `<section class="alert-banner"><span class="banner-icon">!</span><div><strong>${state.alerts.length} ${state.alerts.length === 1 ? "lote requiere" : "lotes requieren"} atención</strong><p>Hay productos vencidos o próximos a vencer en los siguientes 30 días.</p></div></section>` : ""}
     <section class="panel list-panel">
       <div class="list-toolbar"><div><h2>Lotes de inventario</h2><p>Existencias ordenadas por fecha de vencimiento.</p></div><div class="toolbar-actions"><label class="search-field">${icon("search")}<input id="batch-search" type="search" value="${escapeHTML(state.batchSearch)}" placeholder="Buscar medicamento o lote..." aria-label="Buscar lotes" /></label><button class="button button-soft export-button" type="button" data-action="export-batches">${icon("print")}Exportar Excel</button></div></div>
-      ${batches.length ? `<div class="table-wrap"><table class="responsive-table"><thead><tr>${sortableHeading("batches", "medicamentoNombre", "MEDICAMENTO")}${sortableHeading("batches", "codigoLote", "CÓDIGO DE LOTE")}${sortableHeading("batches", "fechaVencimiento", "VENCIMIENTO")}${sortableHeading("batches", "stock", "UNIDADES")}${sortableHeading("batches", "costoUnitario", "COSTO")}${sortableHeading("batches", "precioVenta", "PRECIO")}<th>DISPONIBILIDAD</th><th>ACCIONES</th></tr></thead><tbody>${batchPage.rows.map((batch) => `<tr><td data-label="Medicamento"><strong class="table-primary">${escapeHTML(batch.medicamentoNombre)}</strong></td><td data-label="Lote">${escapeHTML(batch.codigoLote)}</td><td data-label="Vencimiento">${formatDate(batch.fechaVencimiento)}</td><td data-label="Unidades"><strong>${batch.stock.toLocaleString("es-CO")}</strong></td><td data-label="Costo">${formatMoney(batch.costoUnitario)}</td><td data-label="Precio">${formatMoney(batch.precioVenta)}</td><td data-label="Disponibilidad">${batchStatus(batch)}</td><td data-label="Acciones" class="actions-cell"><button class="icon-button" data-action="view-batch" data-id="${escapeHTML(batch.id)}" aria-label="Ver lote">${icon("eye")}</button>${canWrite() ? `<button class="icon-button" data-action="edit-batch" data-id="${escapeHTML(batch.id)}" aria-label="Editar lote">${icon("edit")}</button>` : ""}${state.user.rol === "administrador" ? `<button class="icon-button danger-icon" data-action="delete-batch" data-id="${escapeHTML(batch.id)}" aria-label="Eliminar lote">${icon("trash")}</button>` : ""}</td></tr>`).join("")}</tbody></table></div>${paginationBar("batches", batchPage)}` : emptyState(emptyTitle, emptyMessage)}
+      ${batches.length ? `<div class="table-wrap"><table class="responsive-table"><thead><tr>${sortableHeading("batches", "medicamentoNombre", "MEDICAMENTO")}${sortableHeading("batches", "codigoLote", "CÓDIGO DE LOTE")}${sortableHeading("batches", "fechaVencimiento", "VENCIMIENTO")}${sortableHeading("batches", "stock", "UNIDADES")}${sortableHeading("batches", "costoUnitario", "COSTO")}${sortableHeading("batches", "precioVenta", "PRECIO")}<th>DISPONIBILIDAD</th><th>ACCIONES</th></tr></thead><tbody>${batchPage.rows.map((batch) => `<tr><td data-label="Medicamento"><strong class="table-primary">${escapeHTML(batch.medicamentoNombre)}</strong></td><td data-label="Lote">${escapeHTML(batch.codigoLote)}</td><td data-label="Vencimiento">${formatDate(batch.fechaVencimiento)}</td><td data-label="Unidades"><strong>${batch.stock.toLocaleString("es-CO")}</strong></td><td data-label="Costo">${formatMoney(batch.costoUnitario)}</td><td data-label="Precio">${formatMoney(batch.precioVenta)}</td><td data-label="Disponibilidad">${batchStatus(batch)}</td><td data-label="Acciones" class="actions-cell"><button class="icon-button" data-action="view-batch" data-id="${escapeHTML(batch.id)}" aria-label="Ver lote">${icon("eye")}</button>${canManageCatalog() ? `<button class="icon-button" data-action="edit-batch" data-id="${escapeHTML(batch.id)}" aria-label="Editar lote">${icon("edit")}</button>` : ""}${canManageCatalog() ? `<button class="icon-button danger-icon" data-action="delete-batch" data-id="${escapeHTML(batch.id)}" aria-label="Eliminar lote">${icon("trash")}</button>` : ""}</td></tr>`).join("")}</tbody></table></div>${paginationBar("batches", batchPage)}` : emptyState(emptyTitle, emptyMessage)}
     </section>
     ${state.alerts.length ? `<section class="panel alerts-panel"><div class="panel-heading"><div><h2>Alertas de vencimiento</h2><p>Lotes vencidos o con vencimiento próximo.</p></div></div><div class="alert-list">${state.alerts.map(alertRow).join("")}</div></section>` : ""}`;
 }
@@ -834,7 +843,7 @@ function renderSales() {
   const previousAverage = previousConfirmed.length ? previousTotal / previousConfirmed.length : 0;
   const comparable = Boolean(previousSalesRange(state.salesFilters));
   const salesPage = pageRows(sortedRows(state.sales, "sales"), "sales", 10);
-  const action = canWrite() ? button("Nueva venta", "new-sale", "button button-primary", "plus") : "";
+  const action = canSell() ? button("Nueva venta", "new-sale", "button button-primary", "plus") : "";
   return `
     ${pageHeading("MOVIMIENTO COMERCIAL", "Ventas", `${state.sales.length} transacciones registradas.`, action)}
     <div class="sales-summary">
@@ -864,7 +873,7 @@ function renderSales() {
         </div>
         <button class="button button-soft" type="submit">${icon("search")}Aplicar</button>
       </form>
-      ${state.sales.length ? `<div class="table-wrap"><table class="responsive-table"><thead><tr>${sortableHeading("sales", "numero", "NÚMERO DE VENTA")}${sortableHeading("sales", "fecha", "FECHA Y HORA")}${sortableHeading("sales", "usuarioNombre", "ATENDIÓ")}${sortableHeading("sales", "cantidadProductos", "PRODUCTOS")}${sortableHeading("sales", "estado", "ESTADO")}${sortableHeading("sales", "total", "TOTAL")}<th>ACCIONES</th></tr></thead><tbody>${salesPage.rows.map((sale) => `<tr><td data-label="Venta"><strong class="table-primary sales-number" title="${escapeHTML(sale.numero)}">${escapeHTML(sale.numero)}</strong></td><td data-label="Fecha"><span class="sales-date"><strong>${formatDate(sale.fecha)}</strong><small>${formatTime(sale.fecha)}</small></span></td><td data-label="Atendió"><span class="sales-user">${escapeHTML(sale.usuarioNombre || `Usuario #${sale.usuarioId}`)}</span></td><td data-label="Productos"><span class="sales-product-count">${sale.cantidadProductos} ${sale.cantidadProductos === 1 ? "producto" : "productos"}</span></td><td data-label="Estado"><span class="status ${sale.estado === "confirmada" ? "status-good" : "status-neutral"}">${escapeHTML(sale.estado)}</span></td><td data-label="Total" class="align-right"><strong class="sales-total">${formatMoney(sale.total)}</strong></td><td data-label="Acciones" class="actions-cell"><button type="button" class="icon-button" data-action="view-sale" data-id="${escapeHTML(sale.id)}" aria-label="Ver detalle">${icon("eye")}</button>${canWrite() && sale.estado === "confirmada" ? `<button type="button" class="button button-danger sale-reverse-button" data-action="reverse-sale" data-id="${escapeHTML(sale.id)}" aria-label="Revertir venta">${icon("undo")}Revertir venta</button>` : ""}</td></tr>`).join("")}</tbody></table></div>${paginationBar("sales", salesPage)}` : emptyState("Aún no hay ventas", canWrite() ? "Registra una venta para actualizar el inventario automáticamente." : "Las transacciones registradas aparecerán aquí.")}
+      ${state.sales.length ? `<div class="table-wrap"><table class="responsive-table"><thead><tr>${sortableHeading("sales", "numero", "NÚMERO DE VENTA")}${sortableHeading("sales", "fecha", "FECHA Y HORA")}${sortableHeading("sales", "usuarioNombre", "ATENDIÓ")}${sortableHeading("sales", "cantidadProductos", "PRODUCTOS")}${sortableHeading("sales", "estado", "ESTADO")}${sortableHeading("sales", "total", "TOTAL")}<th>ACCIONES</th></tr></thead><tbody>${salesPage.rows.map((sale) => `<tr><td data-label="Venta"><strong class="table-primary sales-number" title="${escapeHTML(sale.numero)}">${escapeHTML(sale.numero)}</strong></td><td data-label="Fecha"><span class="sales-date"><strong>${formatDate(sale.fecha)}</strong><small>${formatTime(sale.fecha)}</small></span></td><td data-label="Atendió"><span class="sales-user">${escapeHTML(sale.usuarioNombre || `Usuario #${sale.usuarioId}`)}</span></td><td data-label="Productos"><span class="sales-product-count">${sale.cantidadProductos} ${sale.cantidadProductos === 1 ? "producto" : "productos"}</span></td><td data-label="Estado"><span class="status ${sale.estado === "confirmada" ? "status-good" : "status-neutral"}">${escapeHTML(sale.estado)}</span></td><td data-label="Total" class="align-right"><strong class="sales-total">${formatMoney(sale.total)}</strong></td><td data-label="Acciones" class="actions-cell"><button type="button" class="icon-button" data-action="view-sale" data-id="${escapeHTML(sale.id)}" aria-label="Ver detalle">${icon("eye")}</button>${state.user.rol === "administrador" && sale.estado === "confirmada" ? `<button type="button" class="button button-danger sale-reverse-button" data-action="reverse-sale" data-id="${escapeHTML(sale.id)}" aria-label="Revertir venta">${icon("undo")}Revertir venta</button>` : ""}</td></tr>`).join("")}</tbody></table></div>${paginationBar("sales", salesPage)}` : emptyState("Aún no hay ventas", canSell() ? "Registra una venta para actualizar el inventario automáticamente." : "Las transacciones registradas aparecerán aquí.")}
     </section>`;
 }
 
@@ -878,7 +887,7 @@ function renderUsers() {
   const action = button("Crear usuario", "new-user", "button button-primary", "plus");
   return `
     ${pageHeading("EQUIPO Y ACCESOS", "Administración de usuarios", `${state.users.length} cuentas registradas.`, action)}
-    <div class="role-explainer"><strong>Roles del sistema</strong><span>Administrador: control total</span><span>Operador: operaciones diarias</span><span>Consulta: lectura de catálogo y ventas</span><span>Auditor: lectura e inventario</span><span>Un mismo rol puede asignarse a varios usuarios.</span></div>
+    <div class="role-explainer"><strong>Roles del sistema</strong><span>Administrador: control total</span><span>Farmacéutico: gestión de medicamentos y lotes, y actualización de existencias</span><span>Vendedor: consulta de existencias y registro/consulta de sus ventas</span><span>Consulta: lectura de catálogo y ventas</span><span>Un mismo rol puede asignarse a varios usuarios.</span></div>
     <section class="panel list-panel">
       <div class="list-toolbar"><div><h2>Usuarios del sistema</h2><p>Gestiona accesos, roles y estado de las cuentas.</p></div><form id="user-filter" class="inline-filter"><label>Rol<select name="rol"><option value="">Todos los roles</option>${ROLES.map((role) => `<option value="${role}" ${state.userFilters.rol === role ? "selected" : ""}>${role}</option>`).join("")}</select></label><label>Estado<select name="activo"><option value="" ${state.userFilters.activo === "" ? "selected" : ""}>Todos</option><option value="true" ${state.userFilters.activo === "true" ? "selected" : ""}>Activo</option><option value="false" ${state.userFilters.activo === "false" ? "selected" : ""}>Inactivo</option></select></label><button class="button button-soft" type="submit">Filtrar</button></form></div>
       ${users.length ? `<div class="table-wrap"><table class="responsive-table"><thead><tr>${sortableHeading("users", "nombre", "NOMBRE")}${sortableHeading("users", "correo", "CORREO")}${sortableHeading("users", "rol", "ROL")}${sortableHeading("users", "activo", "ESTADO")}<th>ACCIONES</th></tr></thead><tbody>${userPage.rows.map((user) => `<tr><td data-label="Nombre"><strong class="table-primary">${escapeHTML(user.nombre)}</strong></td><td data-label="Correo">${escapeHTML(user.correo)}</td><td data-label="Rol"><span class="role-pill">${escapeHTML(user.rol)}</span></td><td data-label="Estado"><span class="status ${user.activo ? "status-good" : "status-neutral"}">${user.activo ? "Activo" : "Inactivo"}</span></td><td data-label="Acciones" class="actions-cell"><button class="icon-button" data-action="view-user" data-id="${escapeHTML(user.id)}" aria-label="Ver usuario">${icon("eye")}</button><button class="icon-button" data-action="edit-user" data-id="${escapeHTML(user.id)}" aria-label="Editar usuario">${icon("edit")}</button>${user.activo ? user.id !== state.user.id ? `<button class="icon-button danger-icon" data-action="deactivate-user" data-id="${escapeHTML(user.id)}" aria-label="Desactivar usuario">${icon("close")}</button>` : "" : `<button class="button button-soft activate-button" data-action="activate-user" data-id="${escapeHTML(user.id)}" aria-label="Reactivar usuario">${icon("check")}Reactivar</button>`}</td></tr>`).join("")}</tbody></table></div>${paginationBar("users", userPage)}` : emptyState("Sin resultados", "Ajusta los filtros o crea un usuario nuevo.")}
@@ -916,7 +925,7 @@ function userFields(user = {}, creating = false, draft = {}) {
   return `
     <label>Nombre completo<input name="nombre" data-user-full-name maxlength="120" value="${escapeHTML(name)}" required /></label>
     <label>Usuario de acceso (único)
-      <span class="email-composer"><input id="user-username" name="usuario" type="text" inputmode="email" autocapitalize="none" autocomplete="off" maxlength="64" pattern="[A-Za-z0-9._+\\x2d]+" value="${escapeHTML(username)}" placeholder="auditor" required /><span class="email-domain">@farmacia.com</span></span>
+      <span class="email-composer"><input id="user-username" name="usuario" type="text" inputmode="email" autocapitalize="none" autocomplete="off" maxlength="64" pattern="[A-Za-z0-9._+\\x2d]+" value="${escapeHTML(username)}" placeholder="vendedor" required /><span class="email-domain">@farmacia.com</span></span>
       <span class="email-preview">El correo quedará como <strong data-email-preview>${escapeHTML(username || "usuario")}@farmacia.com</strong></span>
       <span class="field-help user-availability ${usernameStatus.conflict ? "user-availability-error" : ""}" data-user-availability role="status">${escapeHTML(usernameStatus.message)}</span>
     </label>
@@ -1196,7 +1205,7 @@ function renderModal() {
   }
   if (type === "sale-view") {
     const items = data.items || [];
-    const reverseAction = canWrite() && data.estado === "confirmada"
+    const reverseAction = state.user.rol === "administrador" && data.estado === "confirmada"
       ? `<div class="sale-reversal-actions"><button type="button" class="button button-danger" data-action="reverse-sale" data-id="${escapeHTML(data.id)}">${icon("undo")}Revertir venta</button></div>`
       : "";
     const detailRows = items.map((item) => {
