@@ -48,7 +48,7 @@ El esquema acordado no incluye auditoría, por lo que tampoco se exponen operaci
    npm run server
    ```
 
-   El servicio SOAP escucha en `http://localhost:4000/soap`; el WSDL está disponible en `http://localhost:4000/soap?wsdl`. `GET http://localhost:4000/health` comprueba tanto el proceso como la conexión con PostgreSQL. Para ejecutar las pruebas: `npm run test:backend`.
+   El servicio SOAP escucha en `http://localhost:4000/soap`; el WSDL está disponible en `http://localhost:4000/soap?wsdl`. `GET http://localhost:4000/health` comprueba tanto el proceso como la conexión con PostgreSQL. El catálogo también está disponible como consulta REST pública en `GET http://localhost:4000/medicamentos`, con filtros opcionales `q`, `principioActivo`, `activo`, `limit` y `offset`. Para ejecutar las pruebas: `npm run test:backend`.
 
 ## Autenticación y permisos
 

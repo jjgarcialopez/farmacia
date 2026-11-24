@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 import soap from "soap";
 import { config } from "./config.js";
 import { pool, withTransaction } from "./db.js";
+import { AppError } from "./errors.js";
+import { listPublicMedications } from "./medications-http.js";
 import { createSoapServices } from "./services/index.js";
 
 const serverDir = path.dirname(fileURLToPath(import.meta.url));
@@ -30,6 +32,7 @@ function applyHttpHeaders(req, res) {
 
 const server = http.createServer(async (req, res) => {
   applyHttpHeaders(req, res);
+  const requestUrl = new URL(req.url || "/", "http://localhost");
   if (req.method === "GET" && req.url === "/health") {
     try {
       await pool.query("SELECT 1");
@@ -39,6 +42,22 @@ const server = http.createServer(async (req, res) => {
       console.error("La comprobación de PostgreSQL falló.", error);
       res.writeHead(503, { "content-type": "application/json; charset=utf-8" });
       res.end(JSON.stringify({ ok: false, error: "database_unavailable" }));
+    }
+    return;
+  }
+  if (req.method === "GET" && requestUrl.pathname === "/medicamentos") {
+    try {
+      const medications = await listPublicMedications(requestUrl.searchParams, pool);
+      res.writeHead(200, { "content-type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify(medications));
+    } catch (error) {
+      const status = error instanceof AppError ? error.status : 500;
+      if (status === 500) console.error("No se pudo consultar el catálogo público de medicamentos.", error);
+      res.writeHead(status, { "content-type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({
+        error: error instanceof AppError ? error.code : "INTERNAL_ERROR",
+        message: error instanceof AppError ? error.message : "No se pudo consultar el catálogo de medicamentos.",
+      }));
     }
     return;
   }

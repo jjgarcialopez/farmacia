@@ -1,0 +1,542 @@
+PRUEBAS DE POSTMAN - SERVICIO SOAP DE FARMACIA
+================================================
+
+OBJETIVO
+--------
+Este documento describe como probar desde Postman las rutas HTTP y las
+operaciones SOAP implementadas en el sistema de farmacia.
+
+IMPORTANTE
+----------
+El backend es SOAP: las operaciones de negocio no reciben JSON. Todas se
+envian como XML por POST a /soap. Usa una base de datos de pruebas, porque
+varias solicitudes crean o modifican usuarios, medicamentos, lotes, ventas e
+inventario.
+
+
+1. PREPARAR EL BACKEND Y POSTMAN
+--------------------------------
+
+Backend local:
+  Base URL: http://localhost:4000
+
+Backend en Render:
+  Base URL: https://<URL-DEL-BACKEND-EN-RENDER>
+  Usa la URL del servicio backend, no la URL del frontend.
+
+En Postman crea un Environment con estas variables:
+  baseUrl                    http://localhost:4000
+  correoAdmin                correo de un usuario administrador existente
+  passwordAdmin              contrasena de ese usuario
+  token                      dejar vacia; se guarda despues del Login
+  medicationId               dejar vacia inicialmente
+  batchId                    dejar vacia inicialmente
+  batchDesechableId          dejar vacia; ID de un lote de prueba sin historial
+  saleId                     dejar vacia inicialmente
+  userId                     dejar vacia inicialmente
+  fechaVencimientoFutura     fecha futura en formato YYYY-MM-DD
+
+Reemplaza baseUrl por la URL de Render cuando pruebes el backend publicado.
+Configura las credenciales de administrador en variables privadas del
+Environment; no incluyas contrasenas reales en capturas o archivos compartidos.
+
+Rutas HTTP:
+  GET  {{baseUrl}}/health       Comprueba backend y conexion a PostgreSQL.
+  GET  {{baseUrl}}/soap?wsdl    Consulta el contrato SOAP.
+  GET  {{baseUrl}}/medicamentos Consulta REST publica del catalogo en JSON.
+  POST {{baseUrl}}/soap         Ejecuta todas las operaciones SOAP.
+
+La ruta GET /medicamentos es publica y no requiere token SOAP. En Postman,
+selecciona GET, usa la URL anterior y agrega filtros opcionales en Params:
+  q                 Texto para buscar por nombre, codigo o principio activo.
+  principioActivo   Filtro por principio activo.
+  activo            true o false.
+  limit             De 1 a 100; por defecto 20.
+  offset            Desde que registro; por defecto 0.
+
+Ejemplo:
+  GET {{baseUrl}}/medicamentos?q=acetaminofen&activo=true&limit=10&offset=0
+
+Esperado: JSON con total, limit, offset y un arreglo medicamentos. Para probar
+desde navegador tambien puedes abrir directamente:
+  http://localhost:4000/medicamentos?q=acetaminofen
+
+Para solicitudes SOAP usa Body > raw > XML y estos encabezados:
+  Content-Type: text/xml; charset=utf-8
+  SOAPAction: "urn:farmacia:v1#NOMBRE_OPERACION"
+
+Reemplaza NOMBRE_OPERACION por la operacion probada, respetando mayusculas.
+Por ejemplo:
+  SOAPAction: "urn:farmacia:v1#ListMedications"
+
+Las operaciones protegidas reciben el token en el encabezado XML SOAP, no en
+Authorization > Bearer Token. El bloque de autenticacion debe ir antes de Body:
+
+  <soapenv:Header>
+    <farm:AuthHeader>
+      <farm:token>{{token}}</farm:token>
+    </farm:AuthHeader>
+  </soapenv:Header>
+
+Plantilla para una operacion protegida:
+
+  <?xml version="1.0" encoding="UTF-8"?>
+  <soapenv:Envelope
+    xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+    xmlns:farm="urn:farmacia:v1">
+    <soapenv:Header>
+      <farm:AuthHeader><farm:token>{{token}}</farm:token></farm:AuthHeader>
+    </soapenv:Header>
+    <soapenv:Body>
+      AQUI_VA_EL_ELEMENTO_DE_LA_OPERACION
+    </soapenv:Body>
+  </soapenv:Envelope>
+
+Para Login usa el mismo sobre, pero sin soapenv:Header.
+
+
+2. PRUEBAS DE DISPONIBILIDAD
+----------------------------
+
+2.1 Salud del backend
+  Metodo: GET
+  URL: {{baseUrl}}/health
+  Body: ninguno
+  Esperado: HTTP 200 y JSON {"ok":true,"service":"farmacia-soap"}.
+  Si devuelve HTTP 503, revisa la conexion a PostgreSQL.
+
+2.2 WSDL
+  Metodo: GET
+  URL: {{baseUrl}}/soap?wsdl
+  Body: ninguno
+  Esperado: HTTP 200 y un documento XML WSDL con FarmaciaService.
+
+
+3. SESION Y AUTENTICACION
+-------------------------
+
+3.1 Login
+  Metodo: POST {{baseUrl}}/soap
+  SOAPAction: "urn:farmacia:v1#Login"
+  Body:
+
+  <farm:Login>
+    <farm:correo>{{correoAdmin}}</farm:correo>
+    <farm:password>{{passwordAdmin}}</farm:password>
+  </farm:Login>
+
+  Esperado: respuesta LoginResponse con token, vencimiento y datos del usuario.
+
+  Para guardar el token automaticamente, agrega este script en Scripts >
+  Post-response:
+
+  const match = pm.response.text().match(
+    /<(?:\w+:)?token>([^<]+)<\/(?:\w+:)?token>/
+  );
+  pm.test("Login devuelve un token", () => pm.expect(match).to.not.be.null);
+  if (match) pm.environment.set("token", match[1]);
+
+3.2 Validar sesion
+  Metodo: POST {{baseUrl}}/soap
+  SOAPAction: "urn:farmacia:v1#ValidateSession"
+  Body:
+
+  <farm:ValidateSession/>
+
+  Esperado: valid=true y los datos del usuario autenticado.
+
+3.3 Login rechazado
+  Ejecuta Login con una contrasena incorrecta.
+  Esperado: SOAP Fault de autenticacion; no se debe devolver un token.
+
+3.4 Token ausente o invalido
+  Ejecuta una operacion protegida sin Header SOAP o con un token aleatorio.
+  Esperado: SOAP Fault de autenticacion.
+
+
+4. USUARIOS
+-----------
+Los metodos de administracion de usuarios requieren el rol administrador.
+
+4.1 ListUsers
+  SOAPAction: "urn:farmacia:v1#ListUsers"
+  Body:
+
+  <farm:ListUsers>
+    <farm:rol>consulta</farm:rol>
+    <farm:activo>true</farm:activo>
+    <farm:limit>10</farm:limit>
+    <farm:offset>0</farm:offset>
+  </farm:ListUsers>
+
+  Esperado: lista paginada de usuarios que cumplen los filtros.
+
+4.2 GetUser
+  SOAPAction: "urn:farmacia:v1#GetUser"
+  Body: <farm:GetUser><farm:id>{{userId}}</farm:id></farm:GetUser>
+  Esperado: datos del usuario indicado.
+
+4.3 CreateUser
+  SOAPAction: "urn:farmacia:v1#CreateUser"
+  Usa un correo nuevo y el dominio @farmacia.com. La contrasena debe tener al
+  menos 12 caracteres. Usa un correo unico para cada ejecucion.
+  Body:
+
+  <farm:CreateUser>
+    <farm:nombre>Usuario Prueba Postman</farm:nombre>
+    <farm:correo>postman.pruebas.UNICO@farmacia.com</farm:correo>
+    <farm:password>ClavePrueba-2026!</farm:password>
+    <farm:rol>consulta</farm:rol>
+  </farm:CreateUser>
+
+  Esperado: respuesta UserResponse con usuario activo. Guarda su id en userId.
+
+4.4 UpdateUser
+  SOAPAction: "urn:farmacia:v1#UpdateUser"
+  Body:
+
+  <farm:UpdateUser>
+    <farm:id>{{userId}}</farm:id>
+    <farm:nombre>Usuario Postman Actualizado</farm:nombre>
+    <farm:rol>auditor</farm:rol>
+  </farm:UpdateUser>
+
+  Esperado: respuesta con los campos actualizados.
+
+4.5 DeactivateUser
+  SOAPAction: "urn:farmacia:v1#DeactivateUser"
+  Body: <farm:DeactivateUser><farm:id>{{userId}}</farm:id></farm:DeactivateUser>
+  Esperado: success=true y activo=false.
+
+4.6 ActivateUser
+  SOAPAction: "urn:farmacia:v1#ActivateUser"
+  Body: <farm:ActivateUser><farm:id>{{userId}}</farm:id></farm:ActivateUser>
+  Esperado: success=true y activo=true.
+
+Pruebas negativas de usuarios:
+  - Crear un usuario con correo fuera de @farmacia.com: debe rechazarse.
+  - Crear usuario con contrasena de menos de 12 caracteres: debe rechazarse.
+  - Repetir un correo ya registrado: debe rechazarse.
+  - Intentar administrar usuarios con un rol que no sea administrador:
+    debe rechazarse por permisos.
+  - Intentar desactivar la propia cuenta o el ultimo administrador activo:
+    debe rechazarse.
+
+
+5. MEDICAMENTOS
+---------------
+Lectura: administrador, operador, consulta y auditor.
+Creacion y actualizacion: administrador y operador.
+Activacion y desactivacion: solo administrador.
+
+5.1 ListMedications
+  SOAPAction: "urn:farmacia:v1#ListMedications"
+  Body:
+
+  <farm:ListMedications>
+    <farm:nombreOCodigo>acetaminofen</farm:nombreOCodigo>
+    <farm:principioActivo>acetaminofen</farm:principioActivo>
+    <farm:activo>true</farm:activo>
+    <farm:limit>10</farm:limit>
+    <farm:offset>0</farm:offset>
+  </farm:ListMedications>
+
+  Los filtros son opcionales. Esperado: lista paginada de medicamentos.
+
+5.2 GetMedication
+  SOAPAction: "urn:farmacia:v1#GetMedication"
+  Body:
+
+  <farm:GetMedication><farm:id>{{medicationId}}</farm:id></farm:GetMedication>
+
+  Esperado: detalle del medicamento.
+
+5.3 CreateMedication
+  SOAPAction: "urn:farmacia:v1#CreateMedication"
+  Usa un codigo unico. Guarda el id de la respuesta en medicationId.
+  Body:
+
+  <farm:CreateMedication>
+    <farm:codigo>POSTMAN-MED-UNICO</farm:codigo>
+    <farm:nombre>Medicamento de prueba Postman</farm:nombre>
+    <farm:principioActivo>Acetaminofen</farm:principioActivo>
+    <farm:presentacion>Tableta 500 mg</farm:presentacion>
+    <farm:requiereFormula>false</farm:requiereFormula>
+    <farm:precioReferencia>1500.00</farm:precioReferencia>
+  </farm:CreateMedication>
+
+5.4 UpdateMedication
+  SOAPAction: "urn:farmacia:v1#UpdateMedication"
+  Body:
+
+  <farm:UpdateMedication>
+    <farm:id>{{medicationId}}</farm:id>
+    <farm:nombre>Medicamento Postman Actualizado</farm:nombre>
+    <farm:precioReferencia>1600.00</farm:precioReferencia>
+  </farm:UpdateMedication>
+
+  Se puede enviar uno o mas campos opcionales, pero se requiere al menos uno.
+
+5.5 DeactivateMedication
+  SOAPAction: "urn:farmacia:v1#DeactivateMedication"
+  Body:
+
+  <farm:DeactivateMedication>
+    <farm:id>{{medicationId}}</farm:id>
+  </farm:DeactivateMedication>
+
+  Esperado: success=true y activo=false.
+
+5.6 ActivateMedication
+  SOAPAction: "urn:farmacia:v1#ActivateMedication"
+  Body:
+
+  <farm:ActivateMedication>
+    <farm:id>{{medicationId}}</farm:id>
+  </farm:ActivateMedication>
+
+  Esperado: success=true y activo=true.
+
+
+6. LOTES Y ALERTAS DE VENCIMIENTO
+---------------------------------
+Lectura: administrador, operador, consulta y auditor.
+Creacion y actualizacion: administrador y operador.
+Eliminacion: solo administrador; no se eliminan lotes con historial.
+
+6.1 ListBatches
+  SOAPAction: "urn:farmacia:v1#ListBatches"
+  Body:
+
+  <farm:ListBatches>
+    <farm:medicamentoId>{{medicationId}}</farm:medicamentoId>
+    <farm:codigoLote>POSTMAN</farm:codigoLote>
+    <farm:limit>10</farm:limit>
+    <farm:offset>0</farm:offset>
+  </farm:ListBatches>
+
+  Los filtros son opcionales. Tambien se pueden enviar
+  fechaVencimientoDesde y fechaVencimientoHasta con formato YYYY-MM-DD.
+
+6.2 GetBatch
+  SOAPAction: "urn:farmacia:v1#GetBatch"
+  Body: <farm:GetBatch><farm:id>{{batchId}}</farm:id></farm:GetBatch>
+  Esperado: detalle del lote y existencias.
+
+6.3 CreateBatch
+  SOAPAction: "urn:farmacia:v1#CreateBatch"
+  El medicamento debe existir y estar activo. Guarda el id de respuesta en
+  batchId. Usa un codigo de lote unico y fecha futura.
+  Body:
+
+  <farm:CreateBatch>
+    <farm:medicamentoId>{{medicationId}}</farm:medicamentoId>
+    <farm:codigoLote>POSTMAN-LOTE-UNICO</farm:codigoLote>
+    <farm:fechaVencimiento>{{fechaVencimientoFutura}}</farm:fechaVencimiento>
+    <farm:stock>30</farm:stock>
+    <farm:costoUnitario>500.00</farm:costoUnitario>
+    <farm:precioVenta>750.00</farm:precioVenta>
+  </farm:CreateBatch>
+
+  Esperado: respuesta BatchResponse. Si stock inicial es mayor que cero,
+  tambien se crea un movimiento de entrada.
+
+6.4 UpdateBatch
+  SOAPAction: "urn:farmacia:v1#UpdateBatch"
+  Si se cambia stock, motivo es obligatorio y se registra un movimiento de
+  ajuste.
+  Body:
+
+  <farm:UpdateBatch>
+    <farm:id>{{batchId}}</farm:id>
+    <farm:stock>35</farm:stock>
+    <farm:motivo>Ajuste de prueba Postman</farm:motivo>
+    <farm:precioVenta>800.00</farm:precioVenta>
+  </farm:UpdateBatch>
+
+  Para actualizar solo codigo, vencimiento o precio, no es necesario enviar
+  motivo. No se puede cambiar de medicamento si el lote tiene historial.
+
+6.5 DeleteBatch
+  SOAPAction: "urn:farmacia:v1#DeleteBatch"
+  Prueba solo con un lote desechable nuevo con stock 0 y sin movimientos ni
+  ventas asociados. Para crearlo, ejecuta CreateBatch como en 6.3, pero usa un
+  codigo de lote nuevo y <farm:stock>0</farm:stock>. Copia el id retornado en
+  batchDesechableId. Un lote creado con stock 0 no genera movimiento inicial.
+  Body: <farm:DeleteBatch><farm:id>{{batchDesechableId}}</farm:id></farm:DeleteBatch>
+  Esperado: success=true.
+  Caso negativo: intentar eliminar un lote con movimientos/ventas debe fallar.
+
+6.6 ListExpirationAlerts
+  SOAPAction: "urn:farmacia:v1#ListExpirationAlerts"
+  Body:
+
+  <farm:ListExpirationAlerts>
+    <farm:limit>10</farm:limit>
+    <farm:offset>0</farm:offset>
+  </farm:ListExpirationAlerts>
+
+  Esperado: lotes con existencias que vencieron o vencen dentro de 30 dias.
+
+
+7. MOVIMIENTOS DE INVENTARIO
+----------------------------
+Roles permitidos: administrador, operador y auditor.
+
+7.1 ListInventoryMovements
+  SOAPAction: "urn:farmacia:v1#ListInventoryMovements"
+  Body:
+
+  <farm:ListInventoryMovements>
+    <farm:loteId>{{batchId}}</farm:loteId>
+    <farm:tipo>entrada</farm:tipo>
+    <farm:limit>10</farm:limit>
+    <farm:offset>0</farm:offset>
+  </farm:ListInventoryMovements>
+
+  Tipos permitidos: entrada, salida, ajuste, reversión. Tambien acepta ventaId,
+  fechaDesde y fechaHasta.
+
+7.2 ListInventoryMovementsByBatch
+  SOAPAction: "urn:farmacia:v1#ListInventoryMovementsByBatch"
+  Body:
+
+  <farm:ListInventoryMovementsByBatch>
+    <farm:loteId>{{batchId}}</farm:loteId>
+    <farm:limit>10</farm:limit>
+    <farm:offset>0</farm:offset>
+  </farm:ListInventoryMovementsByBatch>
+
+  Esperado: movimientos asociados al lote indicado.
+
+
+8. VENTAS
+---------
+Lectura: administrador, operador, consulta y auditor.
+Previsualizar, crear y revertir: administrador y operador.
+
+8.1 PreviewSale
+  SOAPAction: "urn:farmacia:v1#PreviewSale"
+  No registra la venta ni descuenta existencias.
+  Body:
+
+  <farm:PreviewSale>
+    <farm:items>
+      <farm:item>
+        <farm:medicamentoId>{{medicationId}}</farm:medicamentoId>
+        <farm:cantidad>2</farm:cantidad>
+      </farm:item>
+    </farm:items>
+  </farm:PreviewSale>
+
+  Esperado: total y distribucion FEFO por lotes vigentes.
+
+8.2 CreateSale
+  SOAPAction: "urn:farmacia:v1#CreateSale"
+  Usa el mismo body de PreviewSale, reemplazando PreviewSale por CreateSale.
+  Esta operacion si crea venta, descuenta stock y registra movimientos.
+  Guarda sale/id de la respuesta en saleId.
+
+8.3 ListSales
+  SOAPAction: "urn:farmacia:v1#ListSales"
+  Body:
+
+  <farm:ListSales>
+    <farm:estado>confirmada</farm:estado>
+    <farm:fechaDesde>2026-01-01</farm:fechaDesde>
+    <farm:fechaHasta>2026-12-31</farm:fechaHasta>
+    <farm:busqueda>POSTMAN</farm:busqueda>
+    <farm:limit>10</farm:limit>
+    <farm:offset>0</farm:offset>
+  </farm:ListSales>
+
+  Filtros opcionales. Estados permitidos: confirmada y revertida.
+
+8.4 GetSale
+  SOAPAction: "urn:farmacia:v1#GetSale"
+  Body: <farm:GetSale><farm:id>{{saleId}}</farm:id></farm:GetSale>
+  Esperado: venta con su detalle.
+
+8.5 ReverseSale
+  SOAPAction: "urn:farmacia:v1#ReverseSale"
+  Body: <farm:ReverseSale><farm:id>{{saleId}}</farm:id></farm:ReverseSale>
+  Esperado: venta revertida, existencias repuestas y movimiento de reversión.
+  Caso negativo: volver a revertir la misma venta debe fallar.
+
+Casos negativos de ventas:
+  - PreviewSale/CreateSale con cantidad mayor que el stock vigente:
+    debe fallar por existencias insuficientes.
+  - Repetir un medicamento dentro de items: debe rechazarse.
+  - Usar cantidad cero o negativa: debe rechazarse.
+  - Confirmar que PreviewSale no altera el stock.
+  - Confirmar que CreateSale reduce el stock y ReverseSale lo repone.
+
+
+9. PRUEBAS GENERALES DE VALIDACION Y PERMISOS
+---------------------------------------------
+
+9.1 Paginacion
+  En listas, probar limit entre 1 y 100 y offset mayor o igual a cero.
+  Probar limit=0, limit=101 u offset negativo: se espera SOAP Fault de validacion.
+
+9.2 IDs
+  Probar un ID existente, un ID inexistente y un ID no positivo.
+  ID inexistente: se espera error de recurso no encontrado.
+  ID no positivo o no numerico: se espera error de validacion.
+
+9.3 Permisos
+  - Con rol consulta: puede listar medicamentos, lotes y ventas; no puede
+    crear o actualizar datos.
+  - Con rol operador: puede crear/actualizar medicamentos y lotes, y crear o
+    revertir ventas; no puede gestionar usuarios ni activar/desactivar
+    medicamentos.
+  - Con rol auditor: puede consultar movimientos, pero no escribir.
+  - Con rol administrador: puede ejecutar operaciones administrativas.
+  Las operaciones no autorizadas deben responder con SOAP Fault FORBIDDEN.
+
+9.4 Errores SOAP
+  En errores, inspecciona el body de respuesta y confirma que contiene SOAP
+  Fault con un mensaje; no esperes necesariamente un JSON de error.
+
+
+10. ORDEN RECOMENDADO PARA LA PRUEBA COMPLETA
+---------------------------------------------
+
+1. GET /health.
+2. GET /soap?wsdl.
+3. Login y guardar token.
+4. ValidateSession.
+5. Crear un medicamento con codigo unico; guardar medicationId.
+6. Crear un lote para ese medicamento; guardar batchId.
+7. Consultar el medicamento y el lote.
+8. Actualizar el lote con stock y motivo.
+9. Consultar movimientos y comprobar entrada/ajuste.
+10. PreviewSale y verificar que no cambia el stock.
+11. CreateSale y verificar descuento de stock.
+12. ListSales y GetSale.
+13. ReverseSale y confirmar reposicion de stock.
+14. Probar UpdateMedication, DeactivateMedication y ActivateMedication.
+15. Crear un usuario de prueba unico; actualizarlo, desactivarlo y activarlo.
+16. Probar validaciones y permisos.
+17. Probar DeleteBatch solo con un lote desechable sin historial.
+
+Al finalizar, elimina solo los datos de prueba que no tengan historial. El
+sistema impide eliminar lotes asociados a movimientos o ventas.
+
+
+11. ASSERTION GENERICA DE POSTMAN
+---------------------------------
+
+En Scripts > Post-response puedes usar esta prueba para operaciones exitosas:
+
+  pm.test("Respuesta HTTP exitosa", function () {
+    pm.expect(pm.response.code).to.be.within(200, 299);
+  });
+  pm.test("La respuesta no contiene SOAP Fault", function () {
+    pm.expect(pm.response.text()).not.to.match(/<(?:\w+:)?Fault\b/);
+  });
+
+Si una prueba es negativa (por ejemplo, permisos o datos invalidos), espera un
+SOAP Fault y verifica el mensaje/codigo de error correspondiente en el body.
+
+FIN DEL DOCUMENTO
