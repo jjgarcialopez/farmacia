@@ -55,6 +55,7 @@ const icon = (name, className = "") => {
     search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
     logout: '<path d="M10 17l5-5-5-5"/><path d="M15 12H3"/><path d="M12 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-6"/>',
     arrow: '<path d="M7 17 17 7M7 7h10v10"/>',
+    undo: '<path d="M3 7v6h6"/><path d="M21 12a9 9 0 0 0-15.55-6L3 7"/>',
     check: '<path d="m5 12 4 4L19 6"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',
     edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/>',
@@ -863,7 +864,7 @@ function renderSales() {
         </div>
         <button class="button button-soft" type="submit">${icon("search")}Aplicar</button>
       </form>
-      ${state.sales.length ? `<div class="table-wrap"><table class="responsive-table"><thead><tr>${sortableHeading("sales", "numero", "NÚMERO DE VENTA")}${sortableHeading("sales", "fecha", "FECHA Y HORA")}${sortableHeading("sales", "usuarioNombre", "ATENDIÓ")}${sortableHeading("sales", "cantidadProductos", "PRODUCTOS")}${sortableHeading("sales", "estado", "ESTADO")}${sortableHeading("sales", "total", "TOTAL")}<th>ACCIONES</th></tr></thead><tbody>${salesPage.rows.map((sale) => `<tr><td data-label="Venta"><strong class="table-primary sales-number" title="${escapeHTML(sale.numero)}">${escapeHTML(sale.numero)}</strong></td><td data-label="Fecha"><span class="sales-date"><strong>${formatDate(sale.fecha)}</strong><small>${formatTime(sale.fecha)}</small></span></td><td data-label="Atendió"><span class="sales-user">${escapeHTML(sale.usuarioNombre || `Usuario #${sale.usuarioId}`)}</span></td><td data-label="Productos"><span class="sales-product-count">${sale.cantidadProductos} ${sale.cantidadProductos === 1 ? "producto" : "productos"}</span></td><td data-label="Estado"><span class="status ${sale.estado === "confirmada" ? "status-good" : "status-neutral"}">${escapeHTML(sale.estado)}</span></td><td data-label="Total" class="align-right"><strong class="sales-total">${formatMoney(sale.total)}</strong></td><td data-label="Acciones" class="actions-cell"><button class="icon-button" data-action="view-sale" data-id="${escapeHTML(sale.id)}" aria-label="Ver detalle">${icon("eye")}</button>${canWrite() && sale.estado === "confirmada" ? `<button class="icon-button danger-icon" data-action="reverse-sale" data-id="${escapeHTML(sale.id)}" aria-label="Revertir venta">${icon("arrow")}</button>` : ""}</td></tr>`).join("")}</tbody></table></div>${paginationBar("sales", salesPage)}` : emptyState("Aún no hay ventas", canWrite() ? "Registra una venta para actualizar el inventario automáticamente." : "Las transacciones registradas aparecerán aquí.")}
+      ${state.sales.length ? `<div class="table-wrap"><table class="responsive-table"><thead><tr>${sortableHeading("sales", "numero", "NÚMERO DE VENTA")}${sortableHeading("sales", "fecha", "FECHA Y HORA")}${sortableHeading("sales", "usuarioNombre", "ATENDIÓ")}${sortableHeading("sales", "cantidadProductos", "PRODUCTOS")}${sortableHeading("sales", "estado", "ESTADO")}${sortableHeading("sales", "total", "TOTAL")}<th>ACCIONES</th></tr></thead><tbody>${salesPage.rows.map((sale) => `<tr><td data-label="Venta"><strong class="table-primary sales-number" title="${escapeHTML(sale.numero)}">${escapeHTML(sale.numero)}</strong></td><td data-label="Fecha"><span class="sales-date"><strong>${formatDate(sale.fecha)}</strong><small>${formatTime(sale.fecha)}</small></span></td><td data-label="Atendió"><span class="sales-user">${escapeHTML(sale.usuarioNombre || `Usuario #${sale.usuarioId}`)}</span></td><td data-label="Productos"><span class="sales-product-count">${sale.cantidadProductos} ${sale.cantidadProductos === 1 ? "producto" : "productos"}</span></td><td data-label="Estado"><span class="status ${sale.estado === "confirmada" ? "status-good" : "status-neutral"}">${escapeHTML(sale.estado)}</span></td><td data-label="Total" class="align-right"><strong class="sales-total">${formatMoney(sale.total)}</strong></td><td data-label="Acciones" class="actions-cell"><button type="button" class="icon-button" data-action="view-sale" data-id="${escapeHTML(sale.id)}" aria-label="Ver detalle">${icon("eye")}</button>${canWrite() && sale.estado === "confirmada" ? `<button type="button" class="button button-danger sale-reverse-button" data-action="reverse-sale" data-id="${escapeHTML(sale.id)}" aria-label="Revertir venta">${icon("undo")}Revertir venta</button>` : ""}</td></tr>`).join("")}</tbody></table></div>${paginationBar("sales", salesPage)}` : emptyState("Aún no hay ventas", canWrite() ? "Registra una venta para actualizar el inventario automáticamente." : "Las transacciones registradas aparecerán aquí.")}
     </section>`;
 }
 
@@ -1081,9 +1082,17 @@ function selectSaleMedication(index, medicationId) {
 
 function batchFields(batch = {}) {
   const meds = activeMedicationOptions(batch.medicamentoId);
-  if (!meds) return '<div class="form-hint">Primero registra un medicamento activo para poder crear lotes.</div>';
+  const currentMedication = state.medications.find((item) => item.id === batch.medicamentoId);
+  const inactiveCurrentMedication = batch.id && currentMedication && !currentMedication.activo
+    ? `<option value="${escapeHTML(currentMedication.id)}" selected>${escapeHTML(currentMedication.nombre)} · ${escapeHTML(currentMedication.codigo)} (inactivo)</option>`
+    : "";
+  const hasMedicationOptions = Boolean(meds || inactiveCurrentMedication);
+  const medicationEmptyState = !meds && !inactiveCurrentMedication && !batch.id
+    ? `<div class="form-hint full-field">No hay medicamentos activos. Crea uno y volverás aquí para completar el lote. <button type="button" class="button button-soft" data-action="new-medication-from-batch">Crear medicamento</button></div>`
+    : "";
   return `
-    <label>Medicamento<select name="medicamentoId" required>${meds}</select></label>
+    <label>Medicamento<select name="medicamentoId" required ${hasMedicationOptions ? "" : "disabled"}><option value="" disabled ${batch.medicamentoId ? "" : "selected"}>Selecciona un medicamento</option>${meds}${inactiveCurrentMedication}</select></label>
+    ${medicationEmptyState}
     <label>Código de lote<input name="codigoLote" maxlength="80" value="${escapeHTML(batch.codigoLote || "")}" required /></label>
     <label>Fecha de vencimiento<input name="fechaVencimiento" type="date" value="${escapeHTML(batch.fechaVencimiento || "")}" required /></label>
     <label>Existencias<input name="stock" type="number" min="0" step="1" value="${escapeHTML(batch.stock ?? 0)}" required /></label>
@@ -1121,9 +1130,15 @@ function renderModal() {
   const { type, data = {} } = state.modal;
   if (type === "medication-form") {
     const editing = Boolean(data.id);
+    const returnToBatch = Boolean(state.modal.returnToBatch);
+    const actions = editing
+      ? `<button type="button" class="button button-soft" data-action="close-modal">Cancelar</button><button class="button button-primary" type="submit">Guardar cambios</button>`
+      : returnToBatch
+        ? `<button type="button" class="button button-soft" data-action="close-modal">Cancelar</button><button class="button button-primary" type="submit">Guardar y volver al lote</button>`
+        : `<button type="button" class="button button-soft" data-action="close-modal">Cancelar</button><button class="button button-primary" type="submit" data-next-step="batch">Guardar y registrar lote</button>`;
     return modalShell(editing ? "Editar medicamento" : "Nuevo medicamento",
-      `<form data-form="medication" class="modal-form"><div class="form-grid">${medicationFields(data)}</div>${formError()}<footer class="modal-actions"><button type="button" class="button button-soft" data-action="close-modal">Cancelar</button><button class="button button-primary" type="submit">${editing ? "Guardar cambios" : "Guardar medicamento"}</button></footer></form>`,
-      "Completa la información del catálogo.");
+      `<form data-form="medication" class="modal-form"><div class="form-grid">${medicationFields(data)}</div>${!editing && !returnToBatch ? '<button type="submit" class="text-button">Guardar solo el medicamento</button>' : ""}${formError()}<footer class="modal-actions">${actions}</footer></form>`,
+      editing ? "Completa la información del catálogo." : "Registra el medicamento y, si ya tienes existencias, continúa con su primer lote.");
   }
   if (type === "medication-view") {
     return modalShell("Detalle del medicamento",
@@ -1141,9 +1156,10 @@ function renderModal() {
   }
   if (type === "batch-form") {
     const editing = Boolean(data.id);
+    const canRegister = state.medications.some((item) => item.activo) || Boolean(data.id);
     return modalShell(editing ? "Editar lote" : "Registrar lote",
-      `<form data-form="batch" class="modal-form"><div class="form-grid">${batchFields(data)}</div>${formError()}<footer class="modal-actions"><button type="button" class="button button-soft" data-action="close-modal">Cancelar</button><button class="button button-primary" type="submit">${editing ? "Guardar cambios" : "Registrar lote"}</button></footer></form>`,
-      editing ? "Los cambios de existencias generan movimientos de inventario." : "El stock inicial también quedará registrado en el inventario.");
+      `<form data-form="batch" class="modal-form"><div class="form-grid">${batchFields(data)}</div>${formError()}<footer class="modal-actions"><button type="button" class="button button-soft" data-action="close-modal">Cancelar</button><button class="button button-primary" type="submit" ${canRegister ? "" : "disabled"}>${editing ? "Guardar cambios" : "Registrar lote"}</button></footer></form>`,
+      editing ? "Los cambios de existencias generan movimientos de inventario." : "Elige el medicamento y completa los datos del lote; el stock inicial se registrará automáticamente.");
   }
   if (type === "batch-view") {
     return modalShell("Detalle del lote",
@@ -1180,6 +1196,9 @@ function renderModal() {
   }
   if (type === "sale-view") {
     const items = data.items || [];
+    const reverseAction = canWrite() && data.estado === "confirmada"
+      ? `<div class="sale-reversal-actions"><button type="button" class="button button-danger" data-action="reverse-sale" data-id="${escapeHTML(data.id)}">${icon("undo")}Revertir venta</button></div>`
+      : "";
     const detailRows = items.map((item) => {
       const medication = state.medications.find((candidate) => candidate.id === item.medicamentoId);
       const batch = state.batches.find((candidate) =>
@@ -1195,7 +1214,7 @@ function renderModal() {
       ? `<div class="receipt-products"><div class="receipt-product-header"><span>MEDICAMENTO</span><span>LOTE</span><span>CANT.</span><span>PRECIO UNITARIO</span><span class="align-right">SUBTOTAL</span></div>${detailRows}</div>`
       : emptyState("Sin detalle", "Esta venta no tiene productos disponibles.");
     return modalShell(`Venta ${data.numero}`,
-      `<div class="receipt-summary"><span class="status ${data.estado === "confirmada" ? "status-good" : "status-neutral"}">${escapeHTML(data.estado)}</span><dl class="detail-grid"><dt>Fecha y hora</dt><dd>${formatDateTime(data.fecha)}</dd><dt>Atendió</dt><dd>${escapeHTML(data.usuarioNombre || `Usuario #${data.usuarioId}`)}</dd><dt>Productos</dt><dd>${data.cantidadProductos || items.length}</dd></dl></div><h3 class="modal-section-title">Detalle de productos</h3>${receiptDetails}<div class="receipt-total"><span>Total</span><strong>${formatMoney(data.total)}</strong></div><footer class="modal-actions receipt-actions"><button type="button" class="button button-soft" data-action="close-modal">Cerrar</button><button type="button" class="button button-primary" data-action="print-sale">${icon("print")}Imprimir comprobante</button></footer>`,
+      `<div class="receipt-summary"><span class="status ${data.estado === "confirmada" ? "status-good" : "status-neutral"}">${escapeHTML(data.estado)}</span><dl class="detail-grid"><dt>Fecha y hora</dt><dd>${formatDateTime(data.fecha)}</dd><dt>Atendió</dt><dd>${escapeHTML(data.usuarioNombre || `Usuario #${data.usuarioId}`)}</dd><dt>Productos</dt><dd>${data.cantidadProductos || items.length}</dd></dl></div><h3 class="modal-section-title">Detalle de productos</h3>${receiptDetails}<div class="receipt-total"><span>Total</span><strong>${formatMoney(data.total)}</strong></div>${reverseAction}<footer class="modal-actions receipt-actions"><button type="button" class="button button-soft" data-action="close-modal">Cerrar</button><button type="button" class="button button-primary" data-action="print-sale">${icon("print")}Imprimir comprobante</button></footer>`,
       "Comprobante de venta",
       "sale-receipt-modal");
   }
@@ -1282,10 +1301,10 @@ async function openAction(action, id) {
   renderShell();
 }
 
-async function submitForm(form) {
+async function submitForm(form, submitter) {
   const values = new FormData(form);
   const data = Object.fromEntries(values.entries());
-  const submitButton = form.querySelector('[type="submit"]');
+  const submitButton = submitter || form.querySelector('[type="submit"]');
   if (submitButton) {
     submitButton.disabled = true;
     submitButton.dataset.originalLabel = submitButton.innerHTML;
@@ -1305,7 +1324,28 @@ async function submitForm(form) {
       if (editing) {
         await soapCall("UpdateMedication", { id: state.modal.data.id, ...request });
       } else {
-        await soapCall("CreateMedication", request);
+        const result = await soapCall("CreateMedication", request);
+        const nextStepIsBatch = state.modal.returnToBatch || submitter?.dataset.nextStep === "batch";
+        if (nextStepIsBatch) {
+          const medicationElement = child(result, "medication");
+          if (!medicationElement) {
+            throw new Error("El medicamento se guardó, pero el servicio no devolvió sus datos para continuar con el lote.");
+          }
+          const medication = parseMedication(medicationElement);
+          if (!medication.id || !medication.activo) {
+            throw new Error("El medicamento se guardó, pero no se pudo preparar el lote. Revisa el catálogo e inténtalo de nuevo.");
+          }
+          const batchDraft = state.modal.batchDraft || {};
+          state.medications = [...state.medications.filter((item) => item.id !== medication.id), medication];
+          state.modal = {
+            type: "batch-form",
+            data: { ...batchDraft, medicamentoId: medication.id },
+          };
+          state.modalError = "";
+          renderShell();
+          successAlert("Medicamento guardado. Completa los datos de su lote.");
+          return;
+        }
       }
       await finishMutation(editing ? "Medicamento actualizado." : "Medicamento guardado.");
       return;
@@ -1494,7 +1534,7 @@ app.addEventListener("submit", async (event) => {
   if (!form) return;
   if (form.dataset.form) {
     event.preventDefault();
-    await submitForm(form);
+    await submitForm(form, event.submitter);
     return;
   }
   if (form.id === "movement-filter") {
@@ -1544,6 +1584,14 @@ app.addEventListener("click", async (event) => {
     const page = Number(target.dataset.page);
     if (!Number.isFinite(page) || page < 1) return;
     state.pagination[target.dataset.scope] = { page };
+    renderShell();
+    return;
+  }
+  if (action === "new-medication-from-batch") {
+    const form = app.querySelector('[data-form="batch"]');
+    const batchDraft = form ? Object.fromEntries(new FormData(form).entries()) : {};
+    state.modal = { type: "medication-form", returnToBatch: true, batchDraft };
+    state.modalError = "";
     renderShell();
     return;
   }
