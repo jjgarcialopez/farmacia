@@ -16,8 +16,8 @@ import {
   soapArray,
 } from "./common.js";
 
-const READ_ROLES = ["administrador", "operador", "consulta", "auditor"];
-const WRITE_ROLES = ["administrador", "operador"];
+const READ_ROLES = ["administrador", "farmaceutico", "vendedor"];
+const CREATE_ROLES = ["administrador", "vendedor"];
 const MAX_MONEY_CENTS = 999_999_999_999;
 
 function cents(value) {
@@ -145,10 +145,14 @@ async function loadSale(db, saleId) {
 export function createSalesOperations({ pool, withTransaction }) {
   return {
     ListSales: operation("ListSales", async (args, headers) => {
-      await requireRoles(headers, pool, READ_ROLES);
+      const user = await requireRoles(headers, pool, READ_ROLES);
       const { limit, offset } = pagination(args);
       const conditions = [];
       const values = [];
+      if (user.rol === "vendedor") {
+        values.push(user.id);
+        conditions.push(`v.usuario_id = $${values.length}`);
+      }
       if (args.estado !== undefined && args.estado !== "") {
         if (!saleStates.includes(args.estado)) {
           throw new AppError("VALIDATION_ERROR", "estado de venta no válido.");
@@ -220,13 +224,17 @@ export function createSalesOperations({ pool, withTransaction }) {
     }),
 
     GetSale: operation("GetSale", async (args, headers) => {
-      await requireRoles(headers, pool, READ_ROLES);
+      const user = await requireRoles(headers, pool, READ_ROLES);
       const id = positiveId(args.id);
-      return { sale: await loadSale(pool, id) };
+      const sale = await loadSale(pool, id);
+      if (user.rol === "vendedor" && sale.usuarioId !== user.id) {
+        throw new AppError("FORBIDDEN", "Solo puedes consultar tus propias ventas.", 403);
+      }
+      return { sale };
     }),
 
     PreviewSale: operation("PreviewSale", async (args, headers) => {
-      await requireRoles(headers, pool, WRITE_ROLES);
+      await requireRoles(headers, pool, CREATE_ROLES);
       const items = normalizeSaleItems(args);
       const batchesByMedication = await loadEligibleBatches(pool, items);
       const { allocations, totalCents } = allocateSaleItems(items, batchesByMedication);
@@ -248,7 +256,7 @@ export function createSalesOperations({ pool, withTransaction }) {
     }),
 
     CreateSale: operation("CreateSale", async (args, headers) => {
-      const user = await requireRoles(headers, pool, WRITE_ROLES);
+      const user = await requireRoles(headers, pool, CREATE_ROLES);
       const items = normalizeSaleItems(args);
       const outcome = await withTransaction(async (client) => {
         const numero = `V-${randomUUID()}`;
@@ -310,7 +318,7 @@ export function createSalesOperations({ pool, withTransaction }) {
     }),
 
     ReverseSale: operation("ReverseSale", async (args, headers) => {
-      const user = await requireRoles(headers, pool, WRITE_ROLES);
+      const user = await requireRoles(headers, pool, ["administrador"]);
       const id = positiveId(args.id);
       await withTransaction(async (client) => {
         const saleResult = await client.query(

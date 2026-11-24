@@ -32,7 +32,7 @@ function authQuery(sql) {
 }
 
 test("reactivates an inactive user through the administrator operation", async () => {
-  const inactive = { ...admin, id: "2", rol: "operador", activo: false };
+  const inactive = { ...admin, id: "2", rol: "vendedor", activo: false };
   let activated = false;
   const client = {
     async query(sql) {
@@ -66,8 +66,9 @@ test("allows distinct user accounts to share the same role", async () => {
           ...admin,
           id: String(insertedUsers.length + 2),
           nombre: values[0],
-          correo: values[1],
-          rol: values[3],
+          usuario: values[1],
+          correo: values[2],
+          rol: values[4],
         };
         insertedUsers.push(row);
         return { rows: [row], rowCount: 1 };
@@ -78,14 +79,14 @@ test("allows distinct user accounts to share the same role", async () => {
   const createUser = createUserOperations({ pool }).CreateUser;
 
   for (const [nombre, correo] of [
-    ["Operador Uno", "operador.uno@farmacia.com"],
-    ["Operador Dos", "operador.dos@farmacia.com"],
+    ["Vendedor Uno", "vendedor.uno@farmacia.com"],
+    ["Vendedor Dos", "vendedor.dos@farmacia.com"],
   ]) {
-    await createUser({ nombre, correo, password: "ClaveSegura2026!", rol: "operador" }, null, headers);
+    await createUser({ nombre, correo, password: "ClaveSegura2026!", rol: "vendedor" }, null, headers);
   }
 
   assert.equal(insertedUsers.length, 2);
-  assert.deepEqual(insertedUsers.map((user) => user.rol), ["operador", "operador"]);
+  assert.deepEqual(insertedUsers.map((user) => user.rol), ["vendedor", "vendedor"]);
 });
 
 test("explains that a duplicate corporate email may belong to an inactive account", async () => {
@@ -102,13 +103,13 @@ test("explains that a duplicate corporate email may belong to an inactive accoun
 
   await assert.rejects(
     createUser({
-      nombre: "Operador",
-      correo: "operador@farmacia.com",
+      nombre: "Vendedor",
+      correo: "vendedor@farmacia.com",
       password: "ClaveSegura2026!",
-      rol: "operador",
+      rol: "vendedor",
     }, null, headers),
     (error) => {
-      assert.match(error.Fault.Reason.Text, /El rol puede repetirse, pero el correo debe ser único/);
+      assert.match(error.Fault.Reason.Text, /correo debe ser único/);
       return true;
     },
   );

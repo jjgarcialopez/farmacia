@@ -31,8 +31,8 @@ test("reactivates an inactive medication for administrators", async () => {
   const medication = {
     id: "21",
     codigo: "MED-21",
-    nombre: "Acetaminofén",
-    principio_activo: "Acetaminofén",
+    nombre: "AcetaminofÃ©n",
+    principio_activo: "AcetaminofÃ©n",
     presentacion: "Tableta",
     requiere_formula: false,
     precio_referencia: "1.50",
@@ -61,7 +61,7 @@ test("reactivates an inactive medication for administrators", async () => {
 });
 
 test("restricts medication reactivation to administrators", async () => {
-  const operator = { ...administrator, id: "7", rol: "operador" };
+  const operator = { ...administrator, id: "7", rol: "vendedor" };
   const pool = {
     async query(sql) {
       if (sql.includes("FROM usuarios") && sql.includes("WHERE id = $1")) {

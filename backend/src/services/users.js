@@ -5,7 +5,7 @@ import { boolean, corporateEmail, pagination, password, positiveId, role, text }
 import { mapUser, operation, pageQuery, notFound } from "./common.js";
 
 const ADMIN = ["administrador"];
-const SELECT_USER = "id, nombre, correo, rol, activo, creado_en";
+const SELECT_USER = "id, nombre, usuario, correo, rol, activo, creado_en";
 
 async function lockAdminChanges(client) {
   await client.query("SELECT pg_advisory_xact_lock(726184, 1)");
@@ -68,17 +68,26 @@ export function createUserOperations({ pool, withTransaction }) {
     CreateUser: operation("CreateUser", async (args, headers) => {
       await requireRoles(headers, pool, ADMIN);
       const nombre = text(args.nombre, "nombre", 120);
-      const correo = corporateEmail(args.correo);
+      const correo = args.correo === undefined || args.correo === "" ? null : corporateEmail(args.correo);
+      const usuario = args.usuario === undefined || args.usuario === ""
+        ? (correo ? correo.split("@")[0] : undefined)
+        : text(args.usuario, "usuario", 64).toLowerCase();
+      if (!usuario) {
+        throw new AppError("VALIDATION_ERROR", "El usuario es obligatorio.");
+      }
+      if (!/^[a-z0-9._+-]+$/.test(usuario)) {
+        throw new AppError("VALIDATION_ERROR", "El usuario solo puede contener letras, números, punto, guion y guion bajo.");
+      }
       const plainPassword = password(args.password);
-      const userRole = args.rol === undefined || args.rol === "" ? "consulta" : role(args.rol);
+      const userRole = args.rol === undefined || args.rol === "" ? "vendedor" : role(args.rol);
       const hash = await bcrypt.hash(plainPassword, 12);
       let result;
       try {
         result = await pool.query(
-          `INSERT INTO usuarios (nombre, correo, password_hash, rol)
-           VALUES ($1, $2, $3, $4)
+          `INSERT INTO usuarios (nombre, usuario, correo, password_hash, rol)
+           VALUES ($1, $2, $3, $4, $5)
            RETURNING ${SELECT_USER}`,
-          [nombre, correo, hash, userRole],
+          [nombre, usuario, correo, hash, userRole],
         );
       } catch (error) {
         if (error.code === "23505" && error.constraint === "usuarios_correo_key") {
@@ -101,6 +110,14 @@ export function createUserOperations({ pool, withTransaction }) {
       if (args.nombre !== undefined) {
         values.push(text(args.nombre, "nombre", 120));
         updates.push(`nombre = $${values.length}`);
+      }
+      if (args.usuario !== undefined) {
+        const usuario = text(args.usuario, "usuario", 64).toLowerCase();
+        if (!/^[a-z0-9._+-]+$/.test(usuario)) {
+          throw new AppError("VALIDATION_ERROR", "El usuario solo puede contener letras, números, punto, guion y guion bajo.");
+        }
+        values.push(usuario);
+        updates.push(`usuario = $${values.length}`);
       }
       if (args.correo !== undefined) {
         values.push(corporateEmail(args.correo));

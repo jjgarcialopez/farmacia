@@ -4,7 +4,7 @@ const API_URL = window.APP_CONFIG?.apiUrl || "http://localhost:4000/soap";
 const HEALTH_URL = window.APP_CONFIG?.healthUrl || "http://localhost:4000/health";
 const SESSION_WARNING_MS = (window.APP_CONFIG?.sessionWarningMinutes || 5) * 60_000;
 const PAGE_SIZE = 100;
-const ROLES = ["administrador", "operador", "consulta", "auditor"];
+const ROLES = ["administrador", "farmaceutico", "vendedor"];
 const state = {
   token: "",
   user: null,
@@ -93,7 +93,7 @@ function descendantText(parent, name) {
 function readResponse(xml, operation) {
   const document = new DOMParser().parseFromString(xml, "text/xml");
   if (document.getElementsByTagName("parsererror")[0]) {
-    throw new Error("El servidor devolvió una respuesta SOAP que no se pudo interpretar.");
+    throw new Error("El servidor devolviÃƒÂ³ una respuesta SOAP que no se pudo interpretar.");
   }
   const fault = document.getElementsByTagNameNS("*", "Fault")[0];
   if (fault) {
@@ -103,7 +103,7 @@ function readResponse(xml, operation) {
     throw new Error(reason.replace(/^[A-Z_]+:\s*/, ""));
   }
   const result = document.getElementsByTagNameNS("*", `${operation}Response`)[0];
-  if (!result) throw new Error(`El servicio no devolvió la respuesta esperada para ${operation}.`);
+  if (!result) throw new Error(`El servicio no devolviÃƒÂ³ la respuesta esperada para ${operation}.`);
   return result;
 }
 
@@ -131,10 +131,10 @@ async function soapCall(operation, args = {}, authenticated = true) {
       body: envelope,
     });
   } catch {
-    throw new Error("No fue posible conectar con el backend. Verifica que esté activo y que CORS_ORIGIN esté configurado.");
+    throw new Error("No fue posible conectar con el backend. Verifica que estÃƒÂ© activo y que CORS_ORIGIN estÃƒÂ© configurado.");
   }
   const result = readResponse(await response.text(), operation);
-  if (!response.ok) throw new Error(`El servicio respondió con estado ${response.status}.`);
+  if (!response.ok) throw new Error(`El servicio respondiÃƒÂ³ con estado ${response.status}.`);
   return result;
 }
 
@@ -248,8 +248,11 @@ async function listAll(operation, wrapper, itemName, filters = {}) {
   return items;
 }
 
-function canWrite() {
-  return ["administrador", "operador"].includes(state.user?.rol);
+function canManageSales() {
+  return ["administrador", "vendedor"].includes(state.user?.rol);
+}
+function canManageCatalog() {
+  return ["administrador", "farmaceutico"].includes(state.user?.rol);
 }
 
 function canAdministerUsers() {
@@ -257,7 +260,7 @@ function canAdministerUsers() {
 }
 
 function canReadInventoryMovements() {
-  return ["administrador", "operador", "auditor"].includes(state.user?.rol);
+  return ["administrador", "farmaceutico"].includes(state.user?.rol);
 }
 
 async function login(correo, password) {
@@ -265,7 +268,7 @@ async function login(correo, password) {
   const token = field(result, "token");
   const expiresInSeconds = Number(field(result, "expiresInSeconds")) || 2 * 60 * 60;
   const user = child(result, "user");
-  if (!token || !user) throw new Error("El backend devolvió una sesión incompleta.");
+  if (!token || !user) throw new Error("El backend devolviÃƒÂ³ una sesiÃƒÂ³n incompleta.");
   state.token = token;
   state.user = parseUser(user);
   state.sessionExpiry = Date.now() + expiresInSeconds * 1000;
@@ -354,10 +357,10 @@ function salesPeriodActive(period) {
 
 function comparisonText(current, previous, comparable) {
   if (!comparable) return "Acumulado del historial";
-  if (previous === 0) return current > 0 ? "Nuevo frente al periodo anterior" : "Sin variación";
+  if (previous === 0) return current > 0 ? "Nuevo frente al periodo anterior" : "Sin variaciÃƒÂ³n";
   if (current === previous) return "Sin cambio frente al periodo anterior";
   const change = Math.round(((current - previous) / previous) * 100);
-  return `${Math.abs(change)}% ${change > 0 ? "más" : "menos"} frente al periodo anterior`;
+  return `${Math.abs(change)}% ${change > 0 ? "mÃƒÂ¡s" : "menos"} frente al periodo anterior`;
 }
 
 async function loadSalesHistory(filters = state.salesFilters) {
@@ -385,7 +388,7 @@ function formatMoney(value) {
 }
 
 function formatDate(value) {
-  if (!value) return "—";
+  if (!value) return "Ã¢â‚¬â€";
   const date = new Date(`${String(value).slice(0, 10)}T12:00:00`);
   return Number.isNaN(date.getTime())
     ? escapeHTML(value)
@@ -393,7 +396,7 @@ function formatDate(value) {
 }
 
 function formatDateTime(value) {
-  if (!value) return "—";
+  if (!value) return "Ã¢â‚¬â€";
   const date = new Date(value);
   return Number.isNaN(date.getTime())
     ? escapeHTML(value)
@@ -459,9 +462,9 @@ function paginationBar(scope, pagination) {
     .filter((page) => page === 1 || page === pagination.pageCount || Math.abs(page - pagination.current) <= 1);
   let previous = 0;
   const pageButtons = pages.map((page) => {
-    const separator = previous && page - previous > 1 ? '<span class="pagination-gap">…</span>' : "";
+    const separator = previous && page - previous > 1 ? '<span class="pagination-gap">Ã¢â‚¬Â¦</span>' : "";
     previous = page;
-    return `${separator}<button type="button" class="pagination-button ${page === pagination.current ? "active" : ""}" data-action="table-page" data-page="${page}" data-scope="${scope}" aria-label="Página ${page}">${page}</button>`;
+    return `${separator}<button type="button" class="pagination-button ${page === pagination.current ? "active" : ""}" data-action="table-page" data-page="${page}" data-scope="${scope}" aria-label="PÃƒÂ¡gina ${page}">${page}</button>`;
   }).join("");
   return `<div class="pagination"><button type="button" class="pagination-button" data-action="table-page" data-page="${pagination.current - 1}" data-scope="${scope}" ${pagination.current === 1 ? "disabled" : ""}>Anterior</button><div class="pagination-pages">${pageButtons}</div><span class="pagination-summary">${pagination.start + 1}-${pagination.end} de ${pagination.total}</span><button type="button" class="pagination-button" data-action="table-page" data-page="${pagination.current + 1}" data-scope="${scope}" ${pagination.current === pagination.pageCount ? "disabled" : ""}>Siguiente</button></div>`;
 }
@@ -484,7 +487,7 @@ function sortableHeading(scope, key, label) {
   const sort = state.tableSort[scope];
   const active = sort?.key === key;
   const direction = active ? sort.direction : "none";
-  return `<th class="sortable-heading" aria-sort="${direction === "asc" ? "ascending" : direction === "desc" ? "descending" : "none"}"><button type="button" data-action="table-sort" data-scope="${scope}" data-key="${key}">${label}<span aria-hidden="true">${active ? (direction === "asc" ? " ↑" : " ↓") : " ↕"}</span></button></th>`;
+  return `<th class="sortable-heading" aria-sort="${direction === "asc" ? "ascending" : direction === "desc" ? "descending" : "none"}"><button type="button" data-action="table-sort" data-scope="${scope}" data-key="${key}">${label}<span aria-hidden="true">${active ? (direction === "asc" ? " Ã¢â€ â€˜" : " Ã¢â€ â€œ") : " Ã¢â€ â€¢"}</span></button></th>`;
 }
 
 function stockTotal() {
@@ -506,29 +509,29 @@ function renderLogin(error = "") {
         <div class="art-glow"></div>
         <div class="art-brand">${brandMark()}<span>Farmacias Vital Salud</span></div>
         <div class="art-copy">
-          <span class="eyebrow">CUIDAMOS DE TI, TODOS LOS DÍAS</span>
-          <h1>Tu farmacia,<br />más cerca.</h1>
-          <p>Un espacio sencillo para cuidar cada detalle de tu operación.</p>
+          <span class="eyebrow">CUIDAMOS DE TI, TODOS LOS DÃƒÂAS</span>
+          <h1>Tu farmacia,<br />mÃƒÂ¡s cerca.</h1>
+          <p>Un espacio sencillo para cuidar cada detalle de tu operaciÃƒÂ³n.</p>
         </div>
-        <div class="art-footer"><span class="art-check">${icon("check")}</span> Gestión clara. Cuidado cercano.</div>
+        <div class="art-footer"><span class="art-check">${icon("check")}</span> GestiÃƒÂ³n clara. Cuidado cercano.</div>
       </section>
       <section class="login-panel">
         <div class="mobile-brand">${brandMark()}<span>Farmacias Vital Salud</span></div>
         <div class="login-card">
-          <span class="eyebrow">PANEL DE GESTIÓN</span>
-          <h2>Qué bueno verte</h2>
+          <span class="eyebrow">PANEL DE GESTIÃƒâ€œN</span>
+          <h2>QuÃƒÂ© bueno verte</h2>
           <p class="muted">Ingresa con tu cuenta para continuar.</p>
           <form id="login-form">
-            <label for="email">Correo electrónico</label>
+            <label for="email">Correo electrÃƒÂ³nico</label>
             <input id="email" name="email" type="email" placeholder="nombre@farmacia.com" autocomplete="username" required />
-            <label for="password">Contraseña</label>
-            <input id="password" name="password" type="password" placeholder="Tu contraseña" autocomplete="current-password" required />
+            <label for="password">ContraseÃƒÂ±a</label>
+            <input id="password" name="password" type="password" placeholder="Tu contraseÃƒÂ±a" autocomplete="current-password" required />
             ${error ? `<div class="form-error" role="alert">${escapeHTML(error)}</div>` : ""}
-            <button class="button button-primary login-button" type="submit">Iniciar sesión <span>→</span></button>
+            <button class="button button-primary login-button" type="submit">Iniciar sesiÃƒÂ³n <span>Ã¢â€ â€™</span></button>
           </form>
-          <p class="login-note">Tu información está protegida y solo disponible para tu equipo.</p>
+          <p class="login-note">Tu informaciÃƒÂ³n estÃƒÂ¡ protegida y solo disponible para tu equipo.</p>
         </div>
-        <span class="login-copyright">© 2026 Farmacias Vital Salud · Gestión farmacéutica</span>
+        <span class="login-copyright">Ã‚Â© 2026 Farmacias Vital Salud Ã‚Â· GestiÃƒÂ³n farmacÃƒÂ©utica</span>
       </section>
     </main>`;
 
@@ -537,7 +540,7 @@ function renderLogin(error = "") {
     const form = new FormData(event.currentTarget);
     const button = event.currentTarget.querySelector("button");
     button.disabled = true;
-    button.innerHTML = '<span class="spinner"></span> Conectando…';
+    button.innerHTML = '<span class="spinner"></span> ConectandoÃ¢â‚¬Â¦';
     try {
       await login(String(form.get("email")).trim(), String(form.get("password")));
       renderShell();
@@ -581,15 +584,15 @@ function renderShell() {
     <div class="app-shell">
       <aside class="sidebar">
         <a class="brand" href="#" aria-label="Farmacias Vital Salud, inicio">${brandMark()}<span>Farmacias Vital Salud</span></a>
-        <div class="nav-label">GESTIÓN FARMACÉUTICA</div>
+        <div class="nav-label">GESTIÃƒâ€œN FARMACÃƒâ€°UTICA</div>
         <nav class="navigation">${menu.map(([route, label, iconName]) => navItem(route, label, iconName)).join("")}</nav>
         <div class="sidebar-bottom">
-          <div class="help-card"><span class="help-dot"></span><strong>Sesión activa</strong><p>Acceso según el rol ${escapeHTML(state.user.rol)}.</p></div>
+          <div class="help-card"><span class="help-dot"></span><strong>SesiÃƒÂ³n activa</strong><p>Acceso segÃƒÂºn el rol ${escapeHTML(state.user.rol)}.</p></div>
           <button class="profile-button" id="logout">${userAvatar()}<span class="profile-info"><strong>${escapeHTML(state.user.nombre)}</strong><small>${escapeHTML(state.user.rol)}</small></span>${icon("logout", "logout-icon")}</button>
         </div>
       </aside>
       <main class="main-area">
-        <header class="topbar"><div class="mobile-brand">${brandMark()}<span>Farmacias Vital Salud</span></div><div class="breadcrumb">Panel <span>/</span> <strong>${titles[state.route]}</strong></div><div class="topbar-right"><span class="connection-status ${state.connection}" title="${state.connection === "connected" ? "Backend y base de datos disponibles" : "Conexión no disponible"}"><i></i>${state.connection === "connected" ? "Conectado" : state.connection === "checking" ? "Verificando" : "Sin conexión"}</span><span class="today">${new Date().toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" })}</span><button type="button" class="mobile-logout" id="mobile-logout" aria-label="Cerrar sesión" title="Cerrar sesión">${icon("logout")}</button><span class="topbar-avatar">${initials()}</span></div></header>
+        <header class="topbar"><div class="mobile-brand">${brandMark()}<span>Farmacias Vital Salud</span></div><div class="breadcrumb">Panel <span>/</span> <strong>${titles[state.route]}</strong></div><div class="topbar-right"><span class="connection-status ${state.connection}" title="${state.connection === "connected" ? "Backend y base de datos disponibles" : "ConexiÃƒÂ³n no disponible"}"><i></i>${state.connection === "connected" ? "Conectado" : state.connection === "checking" ? "Verificando" : "Sin conexiÃƒÂ³n"}</span><span class="today">${new Date().toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" })}</span><button type="button" class="mobile-logout" id="mobile-logout" aria-label="Cerrar sesiÃƒÂ³n" title="Cerrar sesiÃƒÂ³n">${icon("logout")}</button><span class="topbar-avatar">${initials()}</span></div></header>
         <section class="page-content">${renderRoute()}</section>
       </main>
       ${state.toast ? `<div class="toast" role="status">${icon("check")}${escapeHTML(state.toast)}</div>` : ""}
@@ -630,7 +633,7 @@ function userAvatar() {
 }
 
 function renderRoute() {
-  if (state.loading) return `<section class="loading-route" aria-busy="true" aria-label="Cargando información">${skeletonRows(4, 2)}<div class="dashboard-skeleton-grid">${skeletonRows(5, 4)}${skeletonRows(3, 5)}</div></section>`;
+  if (state.loading) return `<section class="loading-route" aria-busy="true" aria-label="Cargando informaciÃƒÂ³n">${skeletonRows(4, 2)}<div class="dashboard-skeleton-grid">${skeletonRows(5, 4)}${skeletonRows(3, 5)}</div></section>`;
   if (state.route === "bodegas") return renderNotFound();
   if (state.route === "medicamentos") return renderMedications();
   if (state.route === "inventario") return state.inventoryTab === "movimientos" && canReadInventoryMovements()
@@ -647,10 +650,10 @@ function renderNotFound() {
     <section class="not-found-page" aria-labelledby="not-found-title">
       <div class="not-found-card">
         <div class="not-found-copy">
-          <span class="eyebrow">ERROR 404 · SECCIÓN NO DISPONIBLE</span>
+          <span class="eyebrow">ERROR 404 Ã‚Â· SECCIÃƒâ€œN NO DISPONIBLE</span>
           <div class="not-found-code" aria-hidden="true">404</div>
-          <h1 id="not-found-title">¡Ups! No encontramos esta bodega.</h1>
-          <p>La dirección que buscas no está disponible. Esta sección es una demostración de una página de error; puedes volver al panel y continuar gestionando tu farmacia.</p>
+          <h1 id="not-found-title">Ã‚Â¡Ups! No encontramos esta bodega.</h1>
+          <p>La direcciÃƒÂ³n que buscas no estÃƒÂ¡ disponible. Esta secciÃƒÂ³n es una demostraciÃƒÂ³n de una pÃƒÂ¡gina de error; puedes volver al panel y continuar gestionando tu farmacia.</p>
           <div class="not-found-actions">
             <button type="button" class="button button-primary" data-route="inicio">${icon("home")}Volver al resumen</button>
             <button type="button" class="button button-soft" data-route="inventario">${icon("box")}Ver inventario</button>
@@ -704,25 +707,25 @@ function renderDashboard() {
   const recentSales = state.sales.slice(0, 5);
   const alertRows = state.alerts.slice(0, 4);
   return `
-    ${pageHeading("FARMASALUD POPAYÁN", `Hola, ${escapeHTML((state.user.nombre || "").split(" ")[0])} 👋`, "Tu operación, inventario y equipo en un solo lugar.", button("Actualizar datos", "refresh", "button button-soft", "arrow"))}
+    ${pageHeading("FARMASALUD POPAYÃƒÂN", `Hola, ${escapeHTML((state.user.nombre || "").split(" ")[0])} Ã°Å¸â€˜â€¹`, "Tu operaciÃƒÂ³n, inventario y equipo en un solo lugar.", button("Actualizar datos", "refresh", "button button-soft", "arrow"))}
     <div class="metric-grid">
-      ${metricCard("Medicamentos activos", state.medications.filter((item) => item.activo).length, "En tu catálogo", "pills", "green")}
+      ${metricCard("Medicamentos activos", state.medications.filter((item) => item.activo).length, "En tu catÃƒÂ¡logo", "pills", "green")}
       ${metricCard("Unidades disponibles", stockTotal().toLocaleString("es-CO"), `${lowStock} lotes con stock bajo`, "box", "blue")}
       ${metricCard("Por vencer", state.alerts.length, state.alerts.length ? "Revisa las alertas de inventario" : "Sin alertas de vencimiento", "receipt", "amber")}
       ${metricCard("Ventas de hoy", formatMoney(totalToday), `${todaySales.length} transacciones confirmadas`, "arrow", "violet")}
     </div>
     <section class="panel sales-chart-panel">
-      <div class="panel-heading"><div><h2>Ventas de los últimos 7 días</h2><p>Valor confirmado por día</p></div><span class="chart-total">${formatMoney(chartDays.reduce((sum, day) => sum + day.total, 0))}</span></div>
-      <div class="sales-chart" role="img" aria-label="Gráfico de ventas de los últimos siete días">${chartDays.map((day) => `<div class="chart-column"><span class="chart-value">${day.count ? formatMoney(day.total) : "—"}</span><div class="chart-track"><span style="height:${day.total ? Math.max(8, (day.total / chartMax) * 100) : 2}%"></span></div><strong>${day.label}</strong></div>`).join("")}</div>
+      <div class="panel-heading"><div><h2>Ventas de los ÃƒÂºltimos 7 dÃƒÂ­as</h2><p>Valor confirmado por dÃƒÂ­a</p></div><span class="chart-total">${formatMoney(chartDays.reduce((sum, day) => sum + day.total, 0))}</span></div>
+      <div class="sales-chart" role="img" aria-label="GrÃƒÂ¡fico de ventas de los ÃƒÂºltimos siete dÃƒÂ­as">${chartDays.map((day) => `<div class="chart-column"><span class="chart-value">${day.count ? formatMoney(day.total) : "Ã¢â‚¬â€"}</span><div class="chart-track"><span style="height:${day.total ? Math.max(8, (day.total / chartMax) * 100) : 2}%"></span></div><strong>${day.label}</strong></div>`).join("")}</div>
     </section>
     <div class="dashboard-grid">
       <section class="panel">
-        <div class="panel-heading"><div><h2>Ventas recientes</h2><p>Últimas transacciones registradas</p></div><button class="text-button" data-route="ventas">Ver todas <span>→</span></button></div>
-        ${recentSales.length ? `<div class="table-wrap"><table><thead><tr><th>VENTA</th><th>FECHA</th><th>ESTADO</th><th class="align-right">TOTAL</th></tr></thead><tbody>${recentSales.map(saleRow).join("")}</tbody></table></div>` : emptyState("Aún no hay ventas", "Cuando se registren ventas, aparecerán aquí.")}
+        <div class="panel-heading"><div><h2>Ventas recientes</h2><p>ÃƒÅ¡ltimas transacciones registradas</p></div><button class="text-button" data-route="ventas">Ver todas <span>Ã¢â€ â€™</span></button></div>
+        ${recentSales.length ? `<div class="table-wrap"><table><thead><tr><th>VENTA</th><th>FECHA</th><th>ESTADO</th><th class="align-right">TOTAL</th></tr></thead><tbody>${recentSales.map(saleRow).join("")}</tbody></table></div>` : emptyState("AÃƒÂºn no hay ventas", "Cuando se registren ventas, aparecerÃƒÂ¡n aquÃƒÂ­.")}
       </section>
       <section class="panel">
-        <div class="panel-heading"><div><h2>Atención próxima</h2><p>Lotes que requieren seguimiento</p></div>${state.alerts.length ? `<span class="count-pill">${state.alerts.length}</span>` : ""}</div>
-        ${alertRows.length ? `<div class="alert-list">${alertRows.map(alertRow).join("")}</div><button class="text-button panel-link" data-route="inventario">Revisar inventario <span>→</span></button>` : emptyState("Todo al día", "No hay lotes próximos a vencer.")}
+        <div class="panel-heading"><div><h2>AtenciÃƒÂ³n prÃƒÂ³xima</h2><p>Lotes que requieren seguimiento</p></div>${state.alerts.length ? `<span class="count-pill">${state.alerts.length}</span>` : ""}</div>
+        ${alertRows.length ? `<div class="alert-list">${alertRows.map(alertRow).join("")}</div><button class="text-button panel-link" data-route="inventario">Revisar inventario <span>Ã¢â€ â€™</span></button>` : emptyState("Todo al dÃƒÂ­a", "No hay lotes prÃƒÂ³ximos a vencer.")}
       </section>
     </div>
     <div class="connection-note">${icon("check")} Datos conectados con tu backend de farmacia.</div>`;
@@ -734,8 +737,8 @@ function saleRow(sale) {
 
 function alertRow(alert) {
   const expired = alert.dias < 0;
-  const daysLabel = expired ? "Vencido" : alert.dias === 0 ? "Vence hoy" : `${alert.dias} días`;
-  return `<div class="alert-row"><span class="alert-symbol ${expired ? "expired" : ""}">!</span><div class="alert-detail"><strong>${escapeHTML(alert.batch.medicamentoNombre)}</strong><span>Lote ${escapeHTML(alert.batch.codigoLote)} · ${formatDate(alert.batch.fechaVencimiento)}</span></div><span class="alert-days ${expired ? "expired" : ""}">${daysLabel}</span></div>`;
+  const daysLabel = expired ? "Vencido" : alert.dias === 0 ? "Vence hoy" : `${alert.dias} dÃƒÂ­as`;
+  return `<div class="alert-row"><span class="alert-symbol ${expired ? "expired" : ""}">!</span><div class="alert-detail"><strong>${escapeHTML(alert.batch.medicamentoNombre)}</strong><span>Lote ${escapeHTML(alert.batch.codigoLote)} Ã‚Â· ${formatDate(alert.batch.fechaVencimiento)}</span></div><span class="alert-days ${expired ? "expired" : ""}">${daysLabel}</span></div>`;
 }
 
 function renderMedications() {
@@ -743,12 +746,12 @@ function renderMedications() {
   const medications = state.medications.filter((item) =>
     normalizeSearchText(`${item.nombre} ${item.codigo} ${item.principioActivo}`).includes(query));
   const medicationPage = pageRows(sortedRows(medications, "medications"), "medications", 10);
-  const action = canWrite() ? button("Agregar medicamento", "new-medication", "button button-primary", "plus") : "";
+  const action = canManageCatalog() ? button("Agregar medicamento", "new-medication", "button button-primary", "plus") : "";
   return `
-    ${pageHeading("CATÁLOGO", "Medicamentos", `${state.medications.length} registros en tu catálogo.`, action)}
+    ${pageHeading("CATÃƒÂLOGO", "Medicamentos", `${state.medications.length} registros en tu catÃƒÂ¡logo.`, action)}
     <section class="panel list-panel">
-      <div class="list-toolbar"><div><h2>Catálogo de medicamentos</h2><p>Consulta, registra y actualiza productos.</p></div><div class="toolbar-actions"><div class="catalog-search"><label class="search-field">${icon("search")}<input id="medicine-search" type="search" value="${escapeHTML(state.search)}" placeholder="Nombre, código o principio activo..." aria-label="Buscar por nombre, código o principio activo" autocomplete="off" /></label><span class="search-result-count" role="status">${query ? `${medications.length} ${medications.length === 1 ? "resultado" : "resultados"}` : `${state.medications.length} medicamentos`}</span></div><button class="button button-soft export-button" type="button" data-action="export-medications">${icon("print")}Exportar Excel</button></div></div>
-      ${medications.length ? `<div class="table-wrap"><table class="responsive-table"><thead><tr>${sortableHeading("medications", "nombre", "MEDICAMENTO")}${sortableHeading("medications", "codigo", "CÓDIGO")}${sortableHeading("medications", "principioActivo", "PRINCIPIO ACTIVO")}${sortableHeading("medications", "presentacion", "PRESENTACIÓN")}${sortableHeading("medications", "precioReferencia", "PRECIO REF.")}<th>FÓRMULA</th>${sortableHeading("medications", "activo", "ESTADO")}<th>ACCIONES</th></tr></thead><tbody>${medicationPage.rows.map((item) => `<tr><td data-label="Medicamento"><strong class="table-primary">${escapeHTML(item.nombre)}</strong></td><td data-label="Código">${escapeHTML(item.codigo)}</td><td data-label="Principio activo">${escapeHTML(item.principioActivo)}</td><td data-label="Presentación">${escapeHTML(item.presentacion)}</td><td data-label="Precio ref.">${formatMoney(item.precioReferencia)}</td><td data-label="Fórmula">${item.requiereFormula ? "Requiere" : "Libre"}</td><td data-label="Estado"><span class="status ${item.activo ? "status-good" : "status-neutral"}">${item.activo ? "Activo" : "Inactivo"}</span></td><td data-label="Acciones" class="actions-cell"><button class="icon-button" data-action="view-medication" data-id="${escapeHTML(item.id)}" aria-label="Ver medicamento">${icon("eye")}</button>${canWrite() ? `<button class="icon-button" data-action="edit-medication" data-id="${escapeHTML(item.id)}" aria-label="Editar medicamento">${icon("edit")}</button>` : ""}${state.user.rol === "administrador" ? item.activo ? `<button class="icon-button danger-icon" data-action="deactivate-medication" data-id="${escapeHTML(item.id)}" aria-label="Desactivar medicamento">${icon("close")}</button>` : `<button class="button button-soft activate-button" data-action="activate-medication" data-id="${escapeHTML(item.id)}" aria-label="Reactivar medicamento">${icon("check")}Reactivar</button>` : ""}</td></tr>`).join("")}</tbody></table></div>${paginationBar("medications", medicationPage)}` : emptyState(query ? "No encontramos resultados" : "Aún no hay medicamentos", query ? "Prueba con otro nombre, código o principio activo." : canWrite() ? "Agrega el primer producto de tu catálogo." : "Los medicamentos registrados aparecerán aquí.")}
+      <div class="list-toolbar"><div><h2>CatÃƒÂ¡logo de medicamentos</h2><p>Consulta, registra y actualiza productos.</p></div><div class="toolbar-actions"><div class="catalog-search"><label class="search-field">${icon("search")}<input id="medicine-search" type="search" value="${escapeHTML(state.search)}" placeholder="Nombre, cÃƒÂ³digo o principio activo..." aria-label="Buscar por nombre, cÃƒÂ³digo o principio activo" autocomplete="off" /></label><span class="search-result-count" role="status">${query ? `${medications.length} ${medications.length === 1 ? "resultado" : "resultados"}` : `${state.medications.length} medicamentos`}</span></div><button class="button button-soft export-button" type="button" data-action="export-medications">${icon("print")}Exportar Excel</button></div></div>
+      ${medications.length ? `<div class="table-wrap"><table class="responsive-table"><thead><tr>${sortableHeading("medications", "nombre", "MEDICAMENTO")}${sortableHeading("medications", "codigo", "CÃƒâ€œDIGO")}${sortableHeading("medications", "principioActivo", "PRINCIPIO ACTIVO")}${sortableHeading("medications", "presentacion", "PRESENTACIÃƒâ€œN")}${sortableHeading("medications", "precioReferencia", "PRECIO REF.")}<th>FÃƒâ€œRMULA</th>${sortableHeading("medications", "activo", "ESTADO")}<th>ACCIONES</th></tr></thead><tbody>${medicationPage.rows.map((item) => `<tr><td data-label="Medicamento"><strong class="table-primary">${escapeHTML(item.nombre)}</strong></td><td data-label="CÃƒÂ³digo">${escapeHTML(item.codigo)}</td><td data-label="Principio activo">${escapeHTML(item.principioActivo)}</td><td data-label="PresentaciÃƒÂ³n">${escapeHTML(item.presentacion)}</td><td data-label="Precio ref.">${formatMoney(item.precioReferencia)}</td><td data-label="FÃƒÂ³rmula">${item.requiereFormula ? "Requiere" : "Libre"}</td><td data-label="Estado"><span class="status ${item.activo ? "status-good" : "status-neutral"}">${item.activo ? "Activo" : "Inactivo"}</span></td><td data-label="Acciones" class="actions-cell"><button class="icon-button" data-action="view-medication" data-id="${escapeHTML(item.id)}" aria-label="Ver medicamento">${icon("eye")}</button>${canManageCatalog() ? `<button class="icon-button" data-action="edit-medication" data-id="${escapeHTML(item.id)}" aria-label="Editar medicamento">${icon("edit")}</button>` : ""}${state.user.rol === "administrador" ? item.activo ? `<button class="icon-button danger-icon" data-action="deactivate-medication" data-id="${escapeHTML(item.id)}" aria-label="Desactivar medicamento">${icon("close")}</button>` : `<button class="button button-soft activate-button" data-action="activate-medication" data-id="${escapeHTML(item.id)}" aria-label="Reactivar medicamento">${icon("check")}Reactivar</button>` : ""}</td></tr>`).join("")}</tbody></table></div>${paginationBar("medications", medicationPage)}` : emptyState(query ? "No encontramos resultados" : "AÃƒÂºn no hay medicamentos", query ? "Prueba con otro nombre, cÃƒÂ³digo o principio activo." : canManageCatalog() ? "Agrega el primer producto de tu catÃƒÂ¡logo." : "Los medicamentos registrados aparecerÃƒÂ¡n aquÃƒÂ­.")}
     </section>
     <p class="list-footnote">Consulta hasta ${state.medications.length} medicamentos registrados.</p>`;
 }
@@ -766,27 +769,27 @@ function renderBatches() {
     normalizeSearchText(`${batch.medicamentoNombre} ${batch.codigoLote}`).includes(query));
   const medicationsWithoutBatches = matchingMedicationsWithoutBatches(state.medications, state.batches, query);
   const batchPage = pageRows(sortedRows(batches, "batches"), "batches", 10);
-  const action = canWrite() ? button("Registrar lote", "new-batch", "button button-primary", "plus") : "";
+  const action = canManageCatalog() ? button("Registrar lote", "new-batch", "button button-primary", "plus") : "";
   const emptyTitle = query
     ? medicationsWithoutBatches.length ? "Medicamento sin lotes" : "No encontramos lotes"
     : "Sin lotes registrados";
   const medicationNames = medicationsWithoutBatches.map((medication) => medication.nombre).join(", ");
   const emptyMessage = query
     ? medicationsWithoutBatches.length
-      ? `${medicationsWithoutBatches.length === 1 ? "El medicamento" : "Los medicamentos"} ${medicationNames} ${medicationsWithoutBatches.length === 1 ? "está" : "están"} en el catálogo, pero no tiene${medicationsWithoutBatches.length === 1 ? "" : "n"} lotes registrados. ${canWrite() ? "Registra un lote para agregar existencias." : "Solicita a un administrador u operador que registre un lote."}`
-      : "Prueba con otro medicamento o código de lote."
-    : canWrite()
+      ? `${medicationsWithoutBatches.length === 1 ? "El medicamento" : "Los medicamentos"} ${medicationNames} ${medicationsWithoutBatches.length === 1 ? "estÃƒÂ¡" : "estÃƒÂ¡n"} en el catÃƒÂ¡logo, pero no tiene${medicationsWithoutBatches.length === 1 ? "" : "n"} lotes registrados. ${canManageCatalog() ? "Registra un lote para agregar existencias." : "Solicita a un administrador o farmacÃ©utico que registre un lote."}`
+      : "Prueba con otro medicamento o cÃƒÂ³digo de lote."
+    : canManageCatalog()
       ? "Registra un lote para comenzar a controlar las existencias."
-      : "Los lotes registrados en el backend aparecerán en esta tabla.";
+      : "Los lotes registrados en el backend aparecerÃƒÂ¡n en esta tabla.";
   return `
-    ${pageHeading("CONTROL DE EXISTENCIAS", "Inventario", `${state.batches.length} lotes · ${stockTotal().toLocaleString("es-CO")} unidades disponibles.`, action)}
+    ${pageHeading("CONTROL DE EXISTENCIAS", "Inventario", `${state.batches.length} lotes Ã‚Â· ${stockTotal().toLocaleString("es-CO")} unidades disponibles.`, action)}
     <div class="tab-row">${inventoryTabs()}</div>
-    ${state.alerts.length ? `<section class="alert-banner"><span class="banner-icon">!</span><div><strong>${state.alerts.length} ${state.alerts.length === 1 ? "lote requiere" : "lotes requieren"} atención</strong><p>Hay productos vencidos o próximos a vencer en los siguientes 30 días.</p></div></section>` : ""}
+    ${state.alerts.length ? `<section class="alert-banner"><span class="banner-icon">!</span><div><strong>${state.alerts.length} ${state.alerts.length === 1 ? "lote requiere" : "lotes requieren"} atenciÃƒÂ³n</strong><p>Hay productos vencidos o prÃƒÂ³ximos a vencer en los siguientes 30 dÃƒÂ­as.</p></div></section>` : ""}
     <section class="panel list-panel">
       <div class="list-toolbar"><div><h2>Lotes de inventario</h2><p>Existencias ordenadas por fecha de vencimiento.</p></div><div class="toolbar-actions"><label class="search-field">${icon("search")}<input id="batch-search" type="search" value="${escapeHTML(state.batchSearch)}" placeholder="Buscar medicamento o lote..." aria-label="Buscar lotes" /></label><button class="button button-soft export-button" type="button" data-action="export-batches">${icon("print")}Exportar Excel</button></div></div>
-      ${batches.length ? `<div class="table-wrap"><table class="responsive-table"><thead><tr>${sortableHeading("batches", "medicamentoNombre", "MEDICAMENTO")}${sortableHeading("batches", "codigoLote", "CÓDIGO DE LOTE")}${sortableHeading("batches", "fechaVencimiento", "VENCIMIENTO")}${sortableHeading("batches", "stock", "UNIDADES")}${sortableHeading("batches", "costoUnitario", "COSTO")}${sortableHeading("batches", "precioVenta", "PRECIO")}<th>DISPONIBILIDAD</th><th>ACCIONES</th></tr></thead><tbody>${batchPage.rows.map((batch) => `<tr><td data-label="Medicamento"><strong class="table-primary">${escapeHTML(batch.medicamentoNombre)}</strong></td><td data-label="Lote">${escapeHTML(batch.codigoLote)}</td><td data-label="Vencimiento">${formatDate(batch.fechaVencimiento)}</td><td data-label="Unidades"><strong>${batch.stock.toLocaleString("es-CO")}</strong></td><td data-label="Costo">${formatMoney(batch.costoUnitario)}</td><td data-label="Precio">${formatMoney(batch.precioVenta)}</td><td data-label="Disponibilidad">${batchStatus(batch)}</td><td data-label="Acciones" class="actions-cell"><button class="icon-button" data-action="view-batch" data-id="${escapeHTML(batch.id)}" aria-label="Ver lote">${icon("eye")}</button>${canWrite() ? `<button class="icon-button" data-action="edit-batch" data-id="${escapeHTML(batch.id)}" aria-label="Editar lote">${icon("edit")}</button>` : ""}${state.user.rol === "administrador" ? `<button class="icon-button danger-icon" data-action="delete-batch" data-id="${escapeHTML(batch.id)}" aria-label="Eliminar lote">${icon("trash")}</button>` : ""}</td></tr>`).join("")}</tbody></table></div>${paginationBar("batches", batchPage)}` : emptyState(emptyTitle, emptyMessage)}
+      ${batches.length ? `<div class="table-wrap"><table class="responsive-table"><thead><tr>${sortableHeading("batches", "medicamentoNombre", "MEDICAMENTO")}${sortableHeading("batches", "codigoLote", "CÃƒâ€œDIGO DE LOTE")}${sortableHeading("batches", "fechaVencimiento", "VENCIMIENTO")}${sortableHeading("batches", "stock", "UNIDADES")}${sortableHeading("batches", "costoUnitario", "COSTO")}${sortableHeading("batches", "precioVenta", "PRECIO")}<th>DISPONIBILIDAD</th><th>ACCIONES</th></tr></thead><tbody>${batchPage.rows.map((batch) => `<tr><td data-label="Medicamento"><strong class="table-primary">${escapeHTML(batch.medicamentoNombre)}</strong></td><td data-label="Lote">${escapeHTML(batch.codigoLote)}</td><td data-label="Vencimiento">${formatDate(batch.fechaVencimiento)}</td><td data-label="Unidades"><strong>${batch.stock.toLocaleString("es-CO")}</strong></td><td data-label="Costo">${formatMoney(batch.costoUnitario)}</td><td data-label="Precio">${formatMoney(batch.precioVenta)}</td><td data-label="Disponibilidad">${batchStatus(batch)}</td><td data-label="Acciones" class="actions-cell"><button class="icon-button" data-action="view-batch" data-id="${escapeHTML(batch.id)}" aria-label="Ver lote">${icon("eye")}</button>${canManageCatalog() ? `<button class="icon-button" data-action="edit-batch" data-id="${escapeHTML(batch.id)}" aria-label="Editar lote">${icon("edit")}</button>` : ""}${state.user.rol === "administrador" ? `<button class="icon-button danger-icon" data-action="delete-batch" data-id="${escapeHTML(batch.id)}" aria-label="Eliminar lote">${icon("trash")}</button>` : ""}</td></tr>`).join("")}</tbody></table></div>${paginationBar("batches", batchPage)}` : emptyState(emptyTitle, emptyMessage)}
     </section>
-    ${state.alerts.length ? `<section class="panel alerts-panel"><div class="panel-heading"><div><h2>Alertas de vencimiento</h2><p>Lotes vencidos o con vencimiento próximo.</p></div></div><div class="alert-list">${state.alerts.map(alertRow).join("")}</div></section>` : ""}`;
+    ${state.alerts.length ? `<section class="panel alerts-panel"><div class="panel-heading"><div><h2>Alertas de vencimiento</h2><p>Lotes vencidos o con vencimiento prÃƒÂ³ximo.</p></div></div><div class="alert-list">${state.alerts.map(alertRow).join("")}</div></section>` : ""}`;
 }
 
 function batchStatus(batch) {
@@ -799,27 +802,27 @@ function renderMovements() {
   const action = state.route === "inventario" ? `<div class="tab-row">${inventoryTabs()}</div>` : "";
   const movementRows = state.movements.map((item, index) => {
     const isLatest = index === 0;
-    const latestLabel = isLatest ? '<span class="movement-latest-label">Más reciente</span>' : "";
-    const typeTone = item.tipo === "entrada" || item.tipo === "reversión"
+    const latestLabel = isLatest ? '<span class="movement-latest-label">MÃƒÂ¡s reciente</span>' : "";
+    const typeTone = item.tipo === "entrada" || item.tipo === "reversiÃƒÂ³n"
       ? "status-good"
       : item.tipo === "ajuste" ? "status-warning" : "status-neutral";
-    return `<tr class="${isLatest ? "movement-latest-row" : ""}"><td>${formatDateTime(item.fecha)}${latestLabel}</td><td>${escapeHTML(item.loteId)}</td><td>${escapeHTML(item.ventaId || "—")}</td><td><span class="status ${typeTone}">${escapeHTML(item.tipo)}</span></td><td>${item.cantidad}</td><td>${item.stockAntes}</td><td>${item.stockDespues}</td><td>${escapeHTML(item.motivo)}</td><td><span class="user-display"><strong>${escapeHTML(item.usuarioNombre || "Usuario no disponible")}</strong><small>${escapeHTML(item.usuarioRol || "Rol no disponible")}</small></span></td></tr>`;
+    return `<tr class="${isLatest ? "movement-latest-row" : ""}"><td>${formatDateTime(item.fecha)}${latestLabel}</td><td>${escapeHTML(item.loteId)}</td><td>${escapeHTML(item.ventaId || "Ã¢â‚¬â€")}</td><td><span class="status ${typeTone}">${escapeHTML(item.tipo)}</span></td><td>${item.cantidad}</td><td>${item.stockAntes}</td><td>${item.stockDespues}</td><td>${escapeHTML(item.motivo)}</td><td><span class="user-display"><strong>${escapeHTML(item.usuarioNombre || "Usuario no disponible")}</strong><small>${escapeHTML(item.usuarioRol || "Rol no disponible")}</small></span></td></tr>`;
   }).join("");
   return `
     ${pageHeading("TRAZABILIDAD", "Movimientos de inventario", `${state.movements.length} movimientos encontrados.`)}
     ${action}
     <section class="panel filters-panel">
       <form id="movement-filter" class="filter-form">
-        <label>Lote<select name="loteId"><option value="">Todos los lotes</option>${state.batches.map((batch) => `<option value="${escapeHTML(batch.id)}" ${state.movementFilters.loteId === batch.id ? "selected" : ""}>${escapeHTML(batch.codigoLote)} · ${escapeHTML(batch.medicamentoNombre)}</option>`).join("")}</select></label>
+        <label>Lote<select name="loteId"><option value="">Todos los lotes</option>${state.batches.map((batch) => `<option value="${escapeHTML(batch.id)}" ${state.movementFilters.loteId === batch.id ? "selected" : ""}>${escapeHTML(batch.codigoLote)} Ã‚Â· ${escapeHTML(batch.medicamentoNombre)}</option>`).join("")}</select></label>
         <label>Venta ID<input name="ventaId" inputmode="numeric" value="${escapeHTML(state.movementFilters.ventaId || "")}" placeholder="Opcional" /></label>
-        <label>Tipo<select name="tipo"><option value="">Todos</option>${["entrada", "salida", "ajuste", "reversión"].map((item) => `<option ${state.movementFilters.tipo === item ? "selected" : ""}>${item}</option>`).join("")}</select></label>
+        <label>Tipo<select name="tipo"><option value="">Todos</option>${["entrada", "salida", "ajuste", "reversiÃƒÂ³n"].map((item) => `<option ${state.movementFilters.tipo === item ? "selected" : ""}>${item}</option>`).join("")}</select></label>
         <label>Desde<input name="fechaDesde" type="date" value="${escapeHTML(state.movementFilters.fechaDesde || "")}" /></label>
         <label>Hasta<input name="fechaHasta" type="date" value="${escapeHTML(state.movementFilters.fechaHasta || "")}" /></label>
         <button class="button button-primary" type="submit">Filtrar</button>
       </form>
     </section>
     <section class="panel list-panel">
-      ${state.movements.length ? `<div class="table-wrap"><table class="movement-table"><thead><tr><th>FECHA</th><th>LOTE</th><th>VENTA</th><th>TIPO</th><th>CANTIDAD</th><th>STOCK ANTES</th><th>STOCK DESPUÉS</th><th>MOTIVO</th><th>REALIZADO POR</th></tr></thead><tbody>${movementRows}</tbody></table></div>` : emptyState("No hay movimientos", "Al registrar lotes, ajustes o ventas, verás su historial aquí.")}
+      ${state.movements.length ? `<div class="table-wrap"><table class="movement-table"><thead><tr><th>FECHA</th><th>LOTE</th><th>VENTA</th><th>TIPO</th><th>CANTIDAD</th><th>STOCK ANTES</th><th>STOCK DESPUÃƒâ€°S</th><th>MOTIVO</th><th>REALIZADO POR</th></tr></thead><tbody>${movementRows}</tbody></table></div>` : emptyState("No hay movimientos", "Al registrar lotes, ajustes o ventas, verÃƒÂ¡s su historial aquÃƒÂ­.")}
     </section>`;
 }
 
@@ -834,7 +837,7 @@ function renderSales() {
   const previousAverage = previousConfirmed.length ? previousTotal / previousConfirmed.length : 0;
   const comparable = Boolean(previousSalesRange(state.salesFilters));
   const salesPage = pageRows(sortedRows(state.sales, "sales"), "sales", 10);
-  const action = canWrite() ? button("Nueva venta", "new-sale", "button button-primary", "plus") : "";
+  const action = canManageSales() ? button("Nueva venta", "new-sale", "button button-primary", "plus") : "";
   return `
     ${pageHeading("MOVIMIENTO COMERCIAL", "Ventas", `${state.sales.length} transacciones registradas.`, action)}
     <div class="sales-summary">
@@ -848,10 +851,10 @@ function renderSales() {
         <div><h2>Historial de ventas</h2><p>Consulta y administra las transacciones registradas.</p></div>
         <div class="toolbar-actions"><span class="sales-result-count">${state.sales.length} ${state.sales.length === 1 ? "registro" : "registros"}</span><button class="button button-soft export-button" type="button" data-action="export-sales">${icon("print")}Exportar Excel</button></div>
       </div>
-      <div class="sales-period-presets" aria-label="Periodos rápidos">
+      <div class="sales-period-presets" aria-label="Periodos rÃƒÂ¡pidos">
         <span>Periodo</span>
         <button type="button" class="sales-period-button ${salesPeriodActive("today") ? "active" : ""}" data-action="sales-period" data-period="today">Hoy</button>
-        <button type="button" class="sales-period-button ${salesPeriodActive("week") ? "active" : ""}" data-action="sales-period" data-period="week">Últimos 7 días</button>
+        <button type="button" class="sales-period-button ${salesPeriodActive("week") ? "active" : ""}" data-action="sales-period" data-period="week">ÃƒÅ¡ltimos 7 dÃƒÂ­as</button>
         <button type="button" class="sales-period-button ${salesPeriodActive("month") ? "active" : ""}" data-action="sales-period" data-period="month">Este mes</button>
         <button type="button" class="sales-period-button ${salesPeriodActive("all") ? "active" : ""}" data-action="sales-period" data-period="all">Todo</button>
       </div>
@@ -864,7 +867,7 @@ function renderSales() {
         </div>
         <button class="button button-soft" type="submit">${icon("search")}Aplicar</button>
       </form>
-      ${state.sales.length ? `<div class="table-wrap"><table class="responsive-table"><thead><tr>${sortableHeading("sales", "numero", "NÚMERO DE VENTA")}${sortableHeading("sales", "fecha", "FECHA Y HORA")}${sortableHeading("sales", "usuarioNombre", "ATENDIÓ")}${sortableHeading("sales", "cantidadProductos", "PRODUCTOS")}${sortableHeading("sales", "estado", "ESTADO")}${sortableHeading("sales", "total", "TOTAL")}<th>ACCIONES</th></tr></thead><tbody>${salesPage.rows.map((sale) => `<tr><td data-label="Venta"><strong class="table-primary sales-number" title="${escapeHTML(sale.numero)}">${escapeHTML(sale.numero)}</strong></td><td data-label="Fecha"><span class="sales-date"><strong>${formatDate(sale.fecha)}</strong><small>${formatTime(sale.fecha)}</small></span></td><td data-label="Atendió"><span class="sales-user">${escapeHTML(sale.usuarioNombre || `Usuario #${sale.usuarioId}`)}</span></td><td data-label="Productos"><span class="sales-product-count">${sale.cantidadProductos} ${sale.cantidadProductos === 1 ? "producto" : "productos"}</span></td><td data-label="Estado"><span class="status ${sale.estado === "confirmada" ? "status-good" : "status-neutral"}">${escapeHTML(sale.estado)}</span></td><td data-label="Total" class="align-right"><strong class="sales-total">${formatMoney(sale.total)}</strong></td><td data-label="Acciones" class="actions-cell"><button type="button" class="icon-button" data-action="view-sale" data-id="${escapeHTML(sale.id)}" aria-label="Ver detalle">${icon("eye")}</button>${canWrite() && sale.estado === "confirmada" ? `<button type="button" class="button button-danger sale-reverse-button" data-action="reverse-sale" data-id="${escapeHTML(sale.id)}" aria-label="Revertir venta">${icon("undo")}Revertir venta</button>` : ""}</td></tr>`).join("")}</tbody></table></div>${paginationBar("sales", salesPage)}` : emptyState("Aún no hay ventas", canWrite() ? "Registra una venta para actualizar el inventario automáticamente." : "Las transacciones registradas aparecerán aquí.")}
+      ${state.sales.length ? `<div class="table-wrap"><table class="responsive-table"><thead><tr>${sortableHeading("sales", "numero", "NÃƒÅ¡MERO DE VENTA")}${sortableHeading("sales", "fecha", "FECHA Y HORA")}${sortableHeading("sales", "usuarioNombre", "ATENDIÃƒâ€œ")}${sortableHeading("sales", "cantidadProductos", "PRODUCTOS")}${sortableHeading("sales", "estado", "ESTADO")}${sortableHeading("sales", "total", "TOTAL")}<th>ACCIONES</th></tr></thead><tbody>${salesPage.rows.map((sale) => `<tr><td data-label="Venta"><strong class="table-primary sales-number" title="${escapeHTML(sale.numero)}">${escapeHTML(sale.numero)}</strong></td><td data-label="Fecha"><span class="sales-date"><strong>${formatDate(sale.fecha)}</strong><small>${formatTime(sale.fecha)}</small></span></td><td data-label="AtendiÃƒÂ³"><span class="sales-user">${escapeHTML(sale.usuarioNombre || `Usuario #${sale.usuarioId}`)}</span></td><td data-label="Productos"><span class="sales-product-count">${sale.cantidadProductos} ${sale.cantidadProductos === 1 ? "producto" : "productos"}</span></td><td data-label="Estado"><span class="status ${sale.estado === "confirmada" ? "status-good" : "status-neutral"}">${escapeHTML(sale.estado)}</span></td><td data-label="Total" class="align-right"><strong class="sales-total">${formatMoney(sale.total)}</strong></td><td data-label="Acciones" class="actions-cell"><button type="button" class="icon-button" data-action="view-sale" data-id="${escapeHTML(sale.id)}" aria-label="Ver detalle">${icon("eye")}</button>${state.user.rol === "administrador" && sale.estado === "confirmada" ? `<button type="button" class="button button-danger sale-reverse-button" data-action="reverse-sale" data-id="${escapeHTML(sale.id)}" aria-label="Revertir venta">${icon("undo")}Revertir venta</button>` : ""}</td></tr>`).join("")}</tbody></table></div>${paginationBar("sales", salesPage)}` : emptyState("AÃƒÂºn no hay ventas", canManageCatalog() ? "Registra una venta para actualizar el inventario automÃƒÂ¡ticamente." : "Las transacciones registradas aparecerÃƒÂ¡n aquÃƒÂ­.")}
     </section>`;
 }
 
@@ -877,8 +880,8 @@ function renderUsers() {
   const userPage = pageRows(sortedRows(users, "users"), "users", 10);
   const action = button("Crear usuario", "new-user", "button button-primary", "plus");
   return `
-    ${pageHeading("EQUIPO Y ACCESOS", "Administración de usuarios", `${state.users.length} cuentas registradas.`, action)}
-    <div class="role-explainer"><strong>Roles del sistema</strong><span>Administrador: control total</span><span>Operador: operaciones diarias</span><span>Consulta: lectura de catálogo y ventas</span><span>Auditor: lectura e inventario</span><span>Un mismo rol puede asignarse a varios usuarios.</span></div>
+    ${pageHeading("EQUIPO Y ACCESOS", "AdministraciÃƒÂ³n de usuarios", `${state.users.length} cuentas registradas.`, action)}
+    <div class="role-explainer"><strong>Roles del sistema</strong><span>Administrador: control total</span><span>Farmacéutico: medicamentos y lotes</span><span>Vendedor: medicamentos, existencias y ventas</span><span>Un mismo rol puede asignarse a varios usuarios.</span></div>
     <section class="panel list-panel">
       <div class="list-toolbar"><div><h2>Usuarios del sistema</h2><p>Gestiona accesos, roles y estado de las cuentas.</p></div><form id="user-filter" class="inline-filter"><label>Rol<select name="rol"><option value="">Todos los roles</option>${ROLES.map((role) => `<option value="${role}" ${state.userFilters.rol === role ? "selected" : ""}>${role}</option>`).join("")}</select></label><label>Estado<select name="activo"><option value="" ${state.userFilters.activo === "" ? "selected" : ""}>Todos</option><option value="true" ${state.userFilters.activo === "true" ? "selected" : ""}>Activo</option><option value="false" ${state.userFilters.activo === "false" ? "selected" : ""}>Inactivo</option></select></label><button class="button button-soft" type="submit">Filtrar</button></form></div>
       ${users.length ? `<div class="table-wrap"><table class="responsive-table"><thead><tr>${sortableHeading("users", "nombre", "NOMBRE")}${sortableHeading("users", "correo", "CORREO")}${sortableHeading("users", "rol", "ROL")}${sortableHeading("users", "activo", "ESTADO")}<th>ACCIONES</th></tr></thead><tbody>${userPage.rows.map((user) => `<tr><td data-label="Nombre"><strong class="table-primary">${escapeHTML(user.nombre)}</strong></td><td data-label="Correo">${escapeHTML(user.correo)}</td><td data-label="Rol"><span class="role-pill">${escapeHTML(user.rol)}</span></td><td data-label="Estado"><span class="status ${user.activo ? "status-good" : "status-neutral"}">${user.activo ? "Activo" : "Inactivo"}</span></td><td data-label="Acciones" class="actions-cell"><button class="icon-button" data-action="view-user" data-id="${escapeHTML(user.id)}" aria-label="Ver usuario">${icon("eye")}</button><button class="icon-button" data-action="edit-user" data-id="${escapeHTML(user.id)}" aria-label="Editar usuario">${icon("edit")}</button>${user.activo ? user.id !== state.user.id ? `<button class="icon-button danger-icon" data-action="deactivate-user" data-id="${escapeHTML(user.id)}" aria-label="Desactivar usuario">${icon("close")}</button>` : "" : `<button class="button button-soft activate-button" data-action="activate-user" data-id="${escapeHTML(user.id)}" aria-label="Reactivar usuario">${icon("check")}Reactivar</button>`}</td></tr>`).join("")}</tbody></table></div>${paginationBar("users", userPage)}` : emptyState("Sin resultados", "Ajusta los filtros o crea un usuario nuevo.")}
@@ -900,30 +903,30 @@ function formError() {
 
 function medicationFields(item = {}) {
   return `
-    <label>Código<input name="codigo" maxlength="50" value="${escapeHTML(item.codigo || "")}" required /></label>
+    <label>CÃƒÂ³digo<input name="codigo" maxlength="50" value="${escapeHTML(item.codigo || "")}" required /></label>
     <label>Nombre del medicamento<input name="nombre" maxlength="150" value="${escapeHTML(item.nombre || "")}" required /></label>
     <label>Principio activo<input name="principioActivo" maxlength="150" value="${escapeHTML(item.principioActivo || "")}" required /></label>
-    <label>Presentación<input name="presentacion" maxlength="120" value="${escapeHTML(item.presentacion || "")}" placeholder="Ej. Tabletas x 500 mg" required /></label>
+    <label>PresentaciÃƒÂ³n<input name="presentacion" maxlength="120" value="${escapeHTML(item.presentacion || "")}" placeholder="Ej. Tabletas x 500 mg" required /></label>
     <label>Precio de referencia<input name="precioReferencia" type="number" min="0" step="0.01" value="${escapeHTML(item.precioReferencia || "0")}" required /></label>
-    <label class="check-label"><input name="requiereFormula" type="checkbox" ${item.requiereFormula ? "checked" : ""} /> Requiere fórmula médica</label>`;
+    <label class="check-label"><input name="requiereFormula" type="checkbox" ${item.requiereFormula ? "checked" : ""} /> Requiere fÃƒÂ³rmula mÃƒÂ©dica</label>`;
 }
 
 function userFields(user = {}, creating = false, draft = {}) {
   const name = draft.nombre ?? user.nombre ?? "";
   const username = draft.usuario ?? (user.correo || "").split("@")[0];
-  const selectedRole = draft.rol ?? user.rol ?? (creating ? "" : "consulta");
+  const selectedRole = draft.rol ?? user.rol ?? (creating ? "" : "vendedor");
   const usernameStatus = getUsernameStatus(username, user.id);
   return `
     <label>Nombre completo<input name="nombre" data-user-full-name maxlength="120" value="${escapeHTML(name)}" required /></label>
-    <label>Usuario de acceso (único)
-      <span class="email-composer"><input id="user-username" name="usuario" type="text" inputmode="email" autocapitalize="none" autocomplete="off" maxlength="64" pattern="[A-Za-z0-9._+\\x2d]+" value="${escapeHTML(username)}" placeholder="auditor" required /><span class="email-domain">@farmacia.com</span></span>
-      <span class="email-preview">El correo quedará como <strong data-email-preview>${escapeHTML(username || "usuario")}@farmacia.com</strong></span>
+    <label>Usuario de acceso (ÃƒÂºnico)
+      <span class="email-composer"><input id="user-username" name="usuario" type="text" inputmode="email" autocapitalize="none" autocomplete="off" maxlength="64" pattern="[A-Za-z0-9._+\\x2d]+" value="${escapeHTML(username)}" placeholder="vendedor" required /><span class="email-domain">@farmacia.com</span></span>
+      <span class="email-preview">El correo quedarÃƒÂ¡ como <strong data-email-preview>${escapeHTML(username || "usuario")}@farmacia.com</strong></span>
       <span class="field-help user-availability ${usernameStatus.conflict ? "user-availability-error" : ""}" data-user-availability role="status">${escapeHTML(usernameStatus.message)}</span>
     </label>
     <label>Rol (puede repetirse)<select name="rol" required>${creating ? `<option value="" disabled ${selectedRole ? "" : "selected"}>Selecciona un rol</option>` : ""}${ROLES.map((role) => `<option value="${role}" ${selectedRole === role ? "selected" : ""}>${role}</option>`).join("")}</select></label>
-    <label>Contraseña${creating ? "" : " nueva"}<input name="password" type="password" minlength="12" autocomplete="new-password" ${creating ? "required" : ""} placeholder="${creating ? "Mínimo 12 caracteres" : "Déjala vacía para conservarla"}" /></label>
-    ${creating ? `<div class="full-field user-reactivation-row"><button type="button" class="text-button" data-action="go-reactivate-user" data-user-id="${escapeHTML(usernameStatus.userId || "")}" ${usernameStatus.userId ? "" : "hidden"}>Ir a reactivar esta cuenta →</button></div>` : ""}
-    ${creating ? "" : '<p class="field-help">La contraseña se actualiza solo si escribes una nueva (mínimo 12 caracteres).</p>'}`;
+    <label>ContraseÃƒÂ±a${creating ? "" : " nueva"}<input name="password" type="password" minlength="12" autocomplete="new-password" ${creating ? "required" : ""} placeholder="${creating ? "MÃƒÂ­nimo 12 caracteres" : "DÃƒÂ©jala vacÃƒÂ­a para conservarla"}" /></label>
+    ${creating ? `<div class="full-field user-reactivation-row"><button type="button" class="text-button" data-action="go-reactivate-user" data-user-id="${escapeHTML(usernameStatus.userId || "")}" ${usernameStatus.userId ? "" : "hidden"}>Ir a reactivar esta cuenta Ã¢â€ â€™</button></div>` : ""}
+    ${creating ? "" : '<p class="field-help">La contraseÃƒÂ±a se actualiza solo si escribes una nueva (mÃƒÂ­nimo 12 caracteres).</p>'}`;
 }
 
 function getUsernameStatus(username, currentUserId = "") {
@@ -932,7 +935,7 @@ function getUsernameStatus(username, currentUserId = "") {
     return {
       conflict: false,
       userId: "",
-      message: "Se sugiere desde el nombre. El usuario debe ser único; el rol puede repetirse.",
+      message: "Se sugiere desde el nombre. El usuario debe ser ÃƒÂºnico; el rol puede repetirse.",
     };
   }
   const existing = state.users.find((user) =>
@@ -949,7 +952,7 @@ function getUsernameStatus(username, currentUserId = "") {
     userId: existing.activo ? "" : existing.id,
     message: existing.activo
       ? `El usuario "${normalized}" ya pertenece a ${existing.nombre}. El rol puede repetirse; cambia este usuario, por ejemplo, a juliana.valencia.`
-      : `El usuario "${normalized}" pertenece a la cuenta inactiva de ${existing.nombre}. Reactívala desde Administración de usuarios o elige otro usuario para crear una cuenta nueva.`,
+      : `El usuario "${normalized}" pertenece a la cuenta inactiva de ${existing.nombre}. ReactÃƒÂ­vala desde AdministraciÃƒÂ³n de usuarios o elige otro usuario para crear una cuenta nueva.`,
   };
 }
 
@@ -980,7 +983,7 @@ function updateUsernameFeedback(username) {
 
 function activeMedicationOptions(selected = "") {
   return state.medications.filter((item) => item.activo)
-    .map((item) => `<option value="${escapeHTML(item.id)}" ${selected === item.id ? "selected" : ""}>${escapeHTML(item.nombre)} · ${escapeHTML(item.codigo)}</option>`)
+    .map((item) => `<option value="${escapeHTML(item.id)}" ${selected === item.id ? "selected" : ""}>${escapeHTML(item.nombre)} Ã‚Â· ${escapeHTML(item.codigo)}</option>`)
     .join("");
 }
 
@@ -1038,7 +1041,7 @@ async function refreshSalePreview() {
 
 function renderSalePreview() {
   if (state.salePreviewLoading) {
-    return `<div class="sale-preview-message" role="status"><span class="spinner spinner-dark"></span>Calculando precio y existencias…</div>`;
+    return `<div class="sale-preview-message" role="status"><span class="spinner spinner-dark"></span>Calculando precio y existenciasÃ¢â‚¬Â¦</div>`;
   }
   if (state.salePreviewError) {
     return `<div class="sale-preview-error" role="alert">${icon("close")}<span>${escapeHTML(state.salePreviewError)}</span></div>`;
@@ -1052,8 +1055,8 @@ function renderSalePreview() {
     const subtotal = allocations.reduce((sum, allocation) => sum + Number(allocation.subtotal), 0);
     const medication = state.medications.find((candidate) => candidate.id === item.medicamentoId);
     return `<div class="sale-preview-group">
-      <div class="sale-preview-product"><strong>${escapeHTML(medication?.nombre || "Medicamento")}</strong><span>${item.cantidad} uds. · ${formatMoney(subtotal)}</span></div>
-      ${allocations.map((allocation) => `<div class="sale-preview-allocation"><span>${allocation.cantidad} × ${formatMoney(allocation.precioUnitario)}<small>Lote ${escapeHTML(allocation.codigoLote)} · vence ${formatDate(allocation.fechaVencimiento)} · stock ${allocation.existenciasDisponibles}</small></span><strong>${formatMoney(allocation.subtotal)}</strong></div>`).join("")}
+      <div class="sale-preview-product"><strong>${escapeHTML(medication?.nombre || "Medicamento")}</strong><span>${item.cantidad} uds. Ã‚Â· ${formatMoney(subtotal)}</span></div>
+      ${allocations.map((allocation) => `<div class="sale-preview-allocation"><span>${allocation.cantidad} Ãƒâ€” ${formatMoney(allocation.precioUnitario)}<small>Lote ${escapeHTML(allocation.codigoLote)} Ã‚Â· vence ${formatDate(allocation.fechaVencimiento)} Ã‚Â· stock ${allocation.existenciasDisponibles}</small></span><strong>${formatMoney(allocation.subtotal)}</strong></div>`).join("")}
     </div>`;
   }).join("");
   return `<section class="sale-preview" aria-live="polite"><div class="sale-preview-heading"><h4>Detalle FEFO</h4><span>Precios vigentes</span></div>${groups}<div class="sale-preview-total"><span>Total estimado</span><strong>${formatMoney(state.salePreview.total)}</strong></div></section>`;
@@ -1084,16 +1087,16 @@ function batchFields(batch = {}) {
   const meds = activeMedicationOptions(batch.medicamentoId);
   const currentMedication = state.medications.find((item) => item.id === batch.medicamentoId);
   const inactiveCurrentMedication = batch.id && currentMedication && !currentMedication.activo
-    ? `<option value="${escapeHTML(currentMedication.id)}" selected>${escapeHTML(currentMedication.nombre)} · ${escapeHTML(currentMedication.codigo)} (inactivo)</option>`
+    ? `<option value="${escapeHTML(currentMedication.id)}" selected>${escapeHTML(currentMedication.nombre)} Ã‚Â· ${escapeHTML(currentMedication.codigo)} (inactivo)</option>`
     : "";
   const hasMedicationOptions = Boolean(meds || inactiveCurrentMedication);
   const medicationEmptyState = !meds && !inactiveCurrentMedication && !batch.id
-    ? `<div class="form-hint full-field">No hay medicamentos activos. Crea uno y volverás aquí para completar el lote. <button type="button" class="button button-soft" data-action="new-medication-from-batch">Crear medicamento</button></div>`
+    ? `<div class="form-hint full-field">No hay medicamentos activos. Crea uno y volverÃƒÂ¡s aquÃƒÂ­ para completar el lote. <button type="button" class="button button-soft" data-action="new-medication-from-batch">Crear medicamento</button></div>`
     : "";
   return `
     <label>Medicamento<select name="medicamentoId" required ${hasMedicationOptions ? "" : "disabled"}><option value="" disabled ${batch.medicamentoId ? "" : "selected"}>Selecciona un medicamento</option>${meds}${inactiveCurrentMedication}</select></label>
     ${medicationEmptyState}
-    <label>Código de lote<input name="codigoLote" maxlength="80" value="${escapeHTML(batch.codigoLote || "")}" required /></label>
+    <label>CÃƒÂ³digo de lote<input name="codigoLote" maxlength="80" value="${escapeHTML(batch.codigoLote || "")}" required /></label>
     <label>Fecha de vencimiento<input name="fechaVencimiento" type="date" value="${escapeHTML(batch.fechaVencimiento || "")}" required /></label>
     <label>Existencias<input name="stock" type="number" min="0" step="1" value="${escapeHTML(batch.stock ?? 0)}" required /></label>
     <label>Costo unitario<input name="costoUnitario" type="number" min="0" step="0.01" value="${escapeHTML(batch.costoUnitario || "")}" required /></label>
@@ -1115,9 +1118,9 @@ function saleItemRows() {
         <div class="sale-item-row">
           <div class="sale-medicine-picker">
             <label for="sale-medicine-search-${index}">Medicamento</label>
-            <input id="sale-medicine-search-${index}" type="search" data-sale-search-index="${index}" role="combobox" aria-autocomplete="list" aria-expanded="${showResults}" aria-controls="sale-medicine-options-${index}" value="${escapeHTML(item.busqueda)}" placeholder="Buscar por nombre, código o principio activo" autocomplete="off" />
-            ${selected ? `<span class="sale-selection">Seleccionado: ${escapeHTML(selected.nombre)} · ${escapeHTML(selected.codigo)}</span>` : '<span class="sale-selection">Busca y selecciona un medicamento del catálogo.</span>'}
-            ${showResults ? `<div class="sale-medicine-options" id="sale-medicine-options-${index}" role="listbox">${results.length ? results.map((medication) => `<button type="button" class="sale-medicine-option" role="option" data-action="select-sale-medication" data-index="${index}" data-medication-id="${escapeHTML(medication.id)}"><strong>${escapeHTML(medication.nombre)}</strong><small>${escapeHTML(medication.codigo)} · ${escapeHTML(medication.principioActivo)}</small></button>`).join("") : '<p class="sale-no-results">No hay coincidencias. Prueba otro nombre o código.</p>'}</div>` : ""}
+            <input id="sale-medicine-search-${index}" type="search" data-sale-search-index="${index}" role="combobox" aria-autocomplete="list" aria-expanded="${showResults}" aria-controls="sale-medicine-options-${index}" value="${escapeHTML(item.busqueda)}" placeholder="Buscar por nombre, cÃƒÂ³digo o principio activo" autocomplete="off" />
+            ${selected ? `<span class="sale-selection">Seleccionado: ${escapeHTML(selected.nombre)} Ã‚Â· ${escapeHTML(selected.codigo)}</span>` : '<span class="sale-selection">Busca y selecciona un medicamento del catÃƒÂ¡logo.</span>'}
+            ${showResults ? `<div class="sale-medicine-options" id="sale-medicine-options-${index}" role="listbox">${results.length ? results.map((medication) => `<button type="button" class="sale-medicine-option" role="option" data-action="select-sale-medication" data-index="${index}" data-medication-id="${escapeHTML(medication.id)}"><strong>${escapeHTML(medication.nombre)}</strong><small>${escapeHTML(medication.codigo)} Ã‚Â· ${escapeHTML(medication.principioActivo)}</small></button>`).join("") : '<p class="sale-no-results">No hay coincidencias. Prueba otro nombre o cÃƒÂ³digo.</p>'}</div>` : ""}
           </div>
           <label class="sale-quantity">Cantidad<input data-sale-index="${index}" data-sale-field="cantidad" type="number" min="1" step="1" value="${escapeHTML(item.cantidad)}" required /></label>
         </div>
@@ -1138,11 +1141,11 @@ function renderModal() {
         : `<button type="button" class="button button-soft" data-action="close-modal">Cancelar</button><button class="button button-primary" type="submit" data-next-step="batch">Guardar y registrar lote</button>`;
     return modalShell(editing ? "Editar medicamento" : "Nuevo medicamento",
       `<form data-form="medication" class="modal-form"><div class="form-grid">${medicationFields(data)}</div>${!editing && !returnToBatch ? '<button type="submit" class="text-button">Guardar solo el medicamento</button>' : ""}${formError()}<footer class="modal-actions">${actions}</footer></form>`,
-      editing ? "Completa la información del catálogo." : "Registra el medicamento y, si ya tienes existencias, continúa con su primer lote.");
+      editing ? "Completa la informaciÃƒÂ³n del catÃƒÂ¡logo." : "Registra el medicamento y, si ya tienes existencias, continÃƒÂºa con su primer lote.");
   }
   if (type === "medication-view") {
     return modalShell("Detalle del medicamento",
-      `<dl class="detail-grid"><dt>Código</dt><dd>${escapeHTML(data.codigo)}</dd><dt>Nombre</dt><dd>${escapeHTML(data.nombre)}</dd><dt>Principio activo</dt><dd>${escapeHTML(data.principioActivo)}</dd><dt>Presentación</dt><dd>${escapeHTML(data.presentacion)}</dd><dt>Precio de referencia</dt><dd>${formatMoney(data.precioReferencia)}</dd><dt>Fórmula médica</dt><dd>${data.requiereFormula ? "Sí" : "No"}</dd><dt>Estado</dt><dd>${data.activo ? "Activo" : "Inactivo"}</dd></dl><footer class="modal-actions"><button class="button button-soft" data-action="close-modal">Cerrar</button></footer>`);
+      `<dl class="detail-grid"><dt>CÃƒÂ³digo</dt><dd>${escapeHTML(data.codigo)}</dd><dt>Nombre</dt><dd>${escapeHTML(data.nombre)}</dd><dt>Principio activo</dt><dd>${escapeHTML(data.principioActivo)}</dd><dt>PresentaciÃƒÂ³n</dt><dd>${escapeHTML(data.presentacion)}</dd><dt>Precio de referencia</dt><dd>${formatMoney(data.precioReferencia)}</dd><dt>FÃƒÂ³rmula mÃƒÂ©dica</dt><dd>${data.requiereFormula ? "SÃƒÂ­" : "No"}</dd><dt>Estado</dt><dd>${data.activo ? "Activo" : "Inactivo"}</dd></dl><footer class="modal-actions"><button class="button button-soft" data-action="close-modal">Cerrar</button></footer>`);
   }
   if (type === "user-form") {
     const editing = Boolean(data.id);
@@ -1159,11 +1162,11 @@ function renderModal() {
     const canRegister = state.medications.some((item) => item.activo) || Boolean(data.id);
     return modalShell(editing ? "Editar lote" : "Registrar lote",
       `<form data-form="batch" class="modal-form"><div class="form-grid">${batchFields(data)}</div>${formError()}<footer class="modal-actions"><button type="button" class="button button-soft" data-action="close-modal">Cancelar</button><button class="button button-primary" type="submit" ${canRegister ? "" : "disabled"}>${editing ? "Guardar cambios" : "Registrar lote"}</button></footer></form>`,
-      editing ? "Los cambios de existencias generan movimientos de inventario." : "Elige el medicamento y completa los datos del lote; el stock inicial se registrará automáticamente.");
+      editing ? "Los cambios de existencias generan movimientos de inventario." : "Elige el medicamento y completa los datos del lote; el stock inicial se registrarÃƒÂ¡ automÃƒÂ¡ticamente.");
   }
   if (type === "batch-view") {
     return modalShell("Detalle del lote",
-      `<dl class="detail-grid"><dt>Medicamento</dt><dd>${escapeHTML(data.medicamentoNombre)}</dd><dt>Código de lote</dt><dd>${escapeHTML(data.codigoLote)}</dd><dt>Vencimiento</dt><dd>${formatDate(data.fechaVencimiento)}</dd><dt>Existencias</dt><dd>${data.stock}</dd><dt>Costo</dt><dd>${formatMoney(data.costoUnitario)}</dd><dt>Precio de venta</dt><dd>${formatMoney(data.precioVenta)}</dd></dl><footer class="modal-actions"><button class="button button-soft" data-action="close-modal">Cerrar</button></footer>`);
+      `<dl class="detail-grid"><dt>Medicamento</dt><dd>${escapeHTML(data.medicamentoNombre)}</dd><dt>CÃƒÂ³digo de lote</dt><dd>${escapeHTML(data.codigoLote)}</dd><dt>Vencimiento</dt><dd>${formatDate(data.fechaVencimiento)}</dd><dt>Existencias</dt><dd>${data.stock}</dd><dt>Costo</dt><dd>${formatMoney(data.costoUnitario)}</dd><dt>Precio de venta</dt><dd>${formatMoney(data.precioVenta)}</dd></dl><footer class="modal-actions"><button class="button button-soft" data-action="close-modal">Cerrar</button></footer>`);
   }
   if (type === "sale-form") {
     const available = state.medications.some((item) => item.activo);
@@ -1175,17 +1178,17 @@ function renderModal() {
       && state.salePreviewKey === saleItemsKey();
     return modalShell("Registrar venta",
       `<form data-form="sale" class="modal-form sale-form">
-        <div class="sale-guidance"><span class="sale-guidance-icon">${icon("check")}</span><div><strong>Inventario protegido</strong><p>Se asignarán lotes vigentes con existencias, priorizando los próximos a vencer.</p></div></div>
+        <div class="sale-guidance"><span class="sale-guidance-icon">${icon("check")}</span><div><strong>Inventario protegido</strong><p>Se asignarÃƒÂ¡n lotes vigentes con existencias, priorizando los prÃƒÂ³ximos a vencer.</p></div></div>
         <div class="sale-workspace">
           <section class="sale-products">
-            <div class="sale-section-heading"><div><h3>Productos de la venta</h3><p>Agrega uno o más medicamentos y define la cantidad.</p></div><span class="sale-item-count">${state.saleItems.length} ${state.saleItems.length === 1 ? "línea" : "líneas"}</span></div>
+            <div class="sale-section-heading"><div><h3>Productos de la venta</h3><p>Agrega uno o mÃƒÂ¡s medicamentos y define la cantidad.</p></div><span class="sale-item-count">${state.saleItems.length} ${state.saleItems.length === 1 ? "lÃƒÂ­nea" : "lÃƒÂ­neas"}</span></div>
             <div class="sale-items">${saleItemRows()}</div>
             <button type="button" class="button button-soft add-item-button" data-action="add-sale-item">${icon("plus")}Agregar producto</button>
           </section>
           <aside class="sale-cart" aria-label="Resumen del carrito">
             <header class="sale-cart-header"><div><span>Carrito</span><strong>${selectedProducts} ${selectedProducts === 1 ? "producto" : "productos"}</strong></div><span class="sale-cart-count">${selectedUnits} uds.</span></header>
             ${renderSalePreview()}
-            <p class="sale-total-note">La cotización es informativa; el backend validará el precio y las existencias al confirmar.</p>
+            <p class="sale-total-note">La cotizaciÃƒÂ³n es informativa; el backend validarÃƒÂ¡ el precio y las existencias al confirmar.</p>
           </aside>
         </div>
         ${formError()}
@@ -1196,7 +1199,7 @@ function renderModal() {
   }
   if (type === "sale-view") {
     const items = data.items || [];
-    const reverseAction = canWrite() && data.estado === "confirmada"
+    const reverseAction = state.user.rol === "administrador" && data.estado === "confirmada"
       ? `<div class="sale-reversal-actions"><button type="button" class="button button-danger" data-action="reverse-sale" data-id="${escapeHTML(data.id)}">${icon("undo")}Revertir venta</button></div>`
       : "";
     const detailRows = items.map((item) => {
@@ -1208,13 +1211,13 @@ function renderModal() {
         || medication?.nombre
         || batch?.medicamentoNombre
         || "Medicamento no disponible";
-      return `<div class="receipt-product-row"><div><strong class="table-primary">${escapeHTML(medicationName)}</strong></div><div>${escapeHTML(item.codigoLote || "—")}</div><div>${item.cantidad}</div><div>${formatMoney(item.precioUnitario)}</div><div class="align-right">${formatMoney(item.subtotal)}</div></div>`;
+      return `<div class="receipt-product-row"><div><strong class="table-primary">${escapeHTML(medicationName)}</strong></div><div>${escapeHTML(item.codigoLote || "Ã¢â‚¬â€")}</div><div>${item.cantidad}</div><div>${formatMoney(item.precioUnitario)}</div><div class="align-right">${formatMoney(item.subtotal)}</div></div>`;
     }).join("");
     const receiptDetails = items.length
       ? `<div class="receipt-products"><div class="receipt-product-header"><span>MEDICAMENTO</span><span>LOTE</span><span>CANT.</span><span>PRECIO UNITARIO</span><span class="align-right">SUBTOTAL</span></div>${detailRows}</div>`
       : emptyState("Sin detalle", "Esta venta no tiene productos disponibles.");
     return modalShell(`Venta ${data.numero}`,
-      `<div class="receipt-summary"><span class="status ${data.estado === "confirmada" ? "status-good" : "status-neutral"}">${escapeHTML(data.estado)}</span><dl class="detail-grid"><dt>Fecha y hora</dt><dd>${formatDateTime(data.fecha)}</dd><dt>Atendió</dt><dd>${escapeHTML(data.usuarioNombre || `Usuario #${data.usuarioId}`)}</dd><dt>Productos</dt><dd>${data.cantidadProductos || items.length}</dd></dl></div><h3 class="modal-section-title">Detalle de productos</h3>${receiptDetails}<div class="receipt-total"><span>Total</span><strong>${formatMoney(data.total)}</strong></div>${reverseAction}<footer class="modal-actions receipt-actions"><button type="button" class="button button-soft" data-action="close-modal">Cerrar</button><button type="button" class="button button-primary" data-action="print-sale">${icon("print")}Imprimir comprobante</button></footer>`,
+      `<div class="receipt-summary"><span class="status ${data.estado === "confirmada" ? "status-good" : "status-neutral"}">${escapeHTML(data.estado)}</span><dl class="detail-grid"><dt>Fecha y hora</dt><dd>${formatDateTime(data.fecha)}</dd><dt>AtendiÃƒÂ³</dt><dd>${escapeHTML(data.usuarioNombre || `Usuario #${data.usuarioId}`)}</dd><dt>Productos</dt><dd>${data.cantidadProductos || items.length}</dd></dl></div><h3 class="modal-section-title">Detalle de productos</h3>${receiptDetails}<div class="receipt-total"><span>Total</span><strong>${formatMoney(data.total)}</strong></div>${reverseAction}<footer class="modal-actions receipt-actions"><button type="button" class="button button-soft" data-action="close-modal">Cerrar</button><button type="button" class="button button-primary" data-action="print-sale">${icon("print")}Imprimir comprobante</button></footer>`,
       "Comprobante de venta",
       "sale-receipt-modal");
   }
@@ -1236,7 +1239,7 @@ function successAlert(message) {
   window.Swal.fire({
     icon: "success",
     iconColor: "#087b57",
-    title: "¡Cambios guardados!",
+    title: "Ã‚Â¡Cambios guardados!",
     text: message,
     timer: 3000,
     timerProgressBar: true,
@@ -1308,7 +1311,7 @@ async function submitForm(form, submitter) {
   if (submitButton) {
     submitButton.disabled = true;
     submitButton.dataset.originalLabel = submitButton.innerHTML;
-    submitButton.innerHTML = '<span class="spinner spinner-dark"></span> Guardando…';
+    submitButton.innerHTML = '<span class="spinner spinner-dark"></span> GuardandoÃ¢â‚¬Â¦';
   }
   try {
     if (form.dataset.form === "medication") {
@@ -1329,11 +1332,11 @@ async function submitForm(form, submitter) {
         if (nextStepIsBatch) {
           const medicationElement = child(result, "medication");
           if (!medicationElement) {
-            throw new Error("El medicamento se guardó, pero el servicio no devolvió sus datos para continuar con el lote.");
+            throw new Error("El medicamento se guardÃƒÂ³, pero el servicio no devolviÃƒÂ³ sus datos para continuar con el lote.");
           }
           const medication = parseMedication(medicationElement);
           if (!medication.id || !medication.activo) {
-            throw new Error("El medicamento se guardó, pero no se pudo preparar el lote. Revisa el catálogo e inténtalo de nuevo.");
+            throw new Error("El medicamento se guardÃƒÂ³, pero no se pudo preparar el lote. Revisa el catÃƒÂ¡logo e intÃƒÂ©ntalo de nuevo.");
           }
           const batchDraft = state.modal.batchDraft || {};
           state.medications = [...state.medications.filter((item) => item.id !== medication.id), medication];
@@ -1387,14 +1390,14 @@ async function submitForm(form, submitter) {
     if (form.dataset.form === "sale") {
       const ids = state.saleItems.map((item) => item.medicamentoId);
       if (ids.some((id) => !id) || new Set(ids).size !== ids.length) {
-        throw new Error("Selecciona un medicamento diferente en cada línea.");
+        throw new Error("Selecciona un medicamento diferente en cada lÃƒÂ­nea.");
       }
       const items = state.saleItems.map((item) => ({
         medicamentoId: item.medicamentoId,
         cantidad: Number(item.cantidad),
       }));
       if (!state.salePreview || state.salePreviewKey !== saleItemsKey() || state.salePreviewLoading) {
-        throw new Error(state.salePreviewError || "Espera a que se calcule una cotización válida antes de confirmar.");
+        throw new Error(state.salePreviewError || "Espera a que se calcule una cotizaciÃƒÂ³n vÃƒÂ¡lida antes de confirmar.");
       }
       form.querySelector('[type="submit"]').disabled = true;
       const result = await soapCall("CreateSale", { items: { item: items } });
@@ -1597,9 +1600,9 @@ app.addEventListener("click", async (event) => {
   }
   if (action === "export-medications") {
     exportCsv("medicamentos.csv",
-      ["Nombre", "Código", "Principio activo", "Presentación", "Precio referencia", "Fórmula", "Estado"],
-      state.medications.map((item) => [item.nombre, item.codigo, item.principioActivo, item.presentacion, item.precioReferencia, item.requiereFormula ? "Sí" : "No", item.activo ? "Activo" : "Inactivo"]));
-    notify("Catálogo exportado a CSV.");
+      ["Nombre", "CÃƒÂ³digo", "Principio activo", "PresentaciÃƒÂ³n", "Precio referencia", "FÃƒÂ³rmula", "Estado"],
+      state.medications.map((item) => [item.nombre, item.codigo, item.principioActivo, item.presentacion, item.precioReferencia, item.requiereFormula ? "SÃƒÂ­" : "No", item.activo ? "Activo" : "Inactivo"]));
+    notify("CatÃƒÂ¡logo exportado a CSV.");
     return;
   }
   if (action === "export-batches") {
@@ -1611,7 +1614,7 @@ app.addEventListener("click", async (event) => {
   }
   if (action === "export-sales") {
     exportCsv("ventas.csv",
-      ["Número", "Fecha", "Usuario", "Productos", "Estado", "Total"],
+      ["NÃƒÂºmero", "Fecha", "Usuario", "Productos", "Estado", "Total"],
       state.sales.map((item) => [item.numero, item.fecha, item.usuarioNombre || item.usuarioId, item.cantidadProductos, item.estado, item.total]));
     notify("Ventas exportadas a CSV.");
     return;
@@ -1682,7 +1685,7 @@ app.addEventListener("click", async (event) => {
     return;
   }
   if (action === "deactivate-medication") {
-    if (!window.confirm("¿Desactivar este medicamento? Se conservará su historial.")) return;
+    if (!window.confirm("Ã‚Â¿Desactivar este medicamento? Se conservarÃƒÂ¡ su historial.")) return;
     try {
       await soapCall("DeactivateMedication", { id });
       await finishMutation("Medicamento desactivado.");
@@ -1692,7 +1695,7 @@ app.addEventListener("click", async (event) => {
     return;
   }
   if (action === "activate-medication") {
-    if (!window.confirm("¿Reactivar este medicamento? Volverá a estar disponible para las operaciones.")) return;
+    if (!window.confirm("Ã‚Â¿Reactivar este medicamento? VolverÃƒÂ¡ a estar disponible para las operaciones.")) return;
     try {
       await soapCall("ActivateMedication", { id });
       await finishMutation("Medicamento reactivado correctamente.");
@@ -1702,7 +1705,7 @@ app.addEventListener("click", async (event) => {
     return;
   }
   if (action === "deactivate-user") {
-    if (!window.confirm("¿Desactivar este usuario? Ya no podrá iniciar sesión.")) return;
+    if (!window.confirm("Ã‚Â¿Desactivar este usuario? Ya no podrÃƒÂ¡ iniciar sesiÃƒÂ³n.")) return;
     try {
       await soapCall("DeactivateUser", { id });
       await finishMutation("Usuario desactivado.");
@@ -1712,7 +1715,7 @@ app.addEventListener("click", async (event) => {
     return;
   }
   if (action === "activate-user") {
-    if (!window.confirm("¿Reactivar este usuario? Podrá volver a iniciar sesión.")) return;
+    if (!window.confirm("Ã‚Â¿Reactivar este usuario? PodrÃƒÂ¡ volver a iniciar sesiÃƒÂ³n.")) return;
     try {
       await soapCall("ActivateUser", { id });
       state.userFilters.activo = "";
@@ -1723,7 +1726,7 @@ app.addEventListener("click", async (event) => {
     return;
   }
   if (action === "delete-batch") {
-    if (!window.confirm("¿Eliminar este lote? No se podrá eliminar si tiene movimientos o ventas asociados.")) return;
+    if (!window.confirm("Ã‚Â¿Eliminar este lote? No se podrÃƒÂ¡ eliminar si tiene movimientos o ventas asociados.")) return;
     try {
       await soapCall("DeleteBatch", { id });
       await finishMutation("Lote eliminado.");
@@ -1733,7 +1736,7 @@ app.addEventListener("click", async (event) => {
     return;
   }
   if (action === "reverse-sale") {
-    if (!window.confirm("¿Revertir esta venta? Se repondrán las existencias.")) return;
+    if (!window.confirm("Ã‚Â¿Revertir esta venta? Se repondrÃƒÂ¡n las existencias.")) return;
     try {
       await soapCall("ReverseSale", { id });
       await finishMutation("Venta revertida y existencias repuestas.");
@@ -1744,10 +1747,10 @@ app.addEventListener("click", async (event) => {
   }
   if (action === "refresh") {
     target.disabled = true;
-    target.innerHTML = '<span class="spinner spinner-dark"></span> Actualizando…';
+    target.innerHTML = '<span class="spinner spinner-dark"></span> ActualizandoÃ¢â‚¬Â¦';
     try {
       await loadData();
-      state.toast = "Información actualizada.";
+      state.toast = "InformaciÃƒÂ³n actualizada.";
       renderShell();
     } catch (error) {
       target.disabled = false;
@@ -1790,9 +1793,9 @@ window.setInterval(() => {
     state.user = null;
     state.sessionExpiry = 0;
     sessionStorage.removeItem("verdesalud.session");
-    renderLogin("Tu sesión expiró. Inicia sesión nuevamente.");
+    renderLogin("Tu sesiÃƒÂ³n expirÃƒÂ³. Inicia sesiÃƒÂ³n nuevamente.");
   } else if (remaining <= SESSION_WARNING_MS && !state.sessionWarningShown) {
     state.sessionWarningShown = true;
-    notify("Tu sesión vencerá pronto. Guarda tus cambios antes de continuar.");
+    notify("Tu sesiÃƒÂ³n vencerÃƒÂ¡ pronto. Guarda tus cambios antes de continuar.");
   }
 }, 30_000);

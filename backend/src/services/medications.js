@@ -3,10 +3,11 @@ import { requireRoles } from "../auth.js";
 import { boolean, money, pagination, positiveId, text } from "../validation.js";
 import { mapMedication, operation, pageQuery, notFound } from "./common.js";
 
-const READ_ROLES = ["administrador", "operador", "consulta", "auditor"];
-const WRITE_ROLES = ["administrador", "operador"];
-const SELECT_MEDICATION = `id, codigo, nombre, principio_activo, presentacion,
-  requiere_formula, precio_referencia, activo, creado_en`;
+const READ_ROLES = ["administrador", "farmaceutico", "vendedor"];
+const WRITE_ROLES = ["administrador", "farmaceutico"];
+const ADMIN = ["administrador"];
+const SELECT_MEDICATION = `id, codigo, nombre, principio_activo, concentracion, presentacion,
+  requiere_formula, precio_referencia, precio_venta, activo, creado_en`;
 
 export function createMedicationOperations({ pool }) {
   return {
@@ -61,14 +62,16 @@ export function createMedicationOperations({ pool }) {
         text(args.codigo, "codigo", 50),
         text(args.nombre, "nombre", 150),
         text(args.principioActivo, "principioActivo", 150),
+        text(args.concentracion, "concentracion", 80),
         text(args.presentacion, "presentacion", 120),
         args.requiereFormula === undefined ? false : boolean(args.requiereFormula, "requiereFormula"),
         args.precioReferencia === undefined ? "0.00" : money(args.precioReferencia, "precioReferencia"),
+        args.precioVenta === undefined ? "0.00" : money(args.precioVenta, "precioVenta"),
       ];
       const result = await pool.query(
         `INSERT INTO medicamentos
-          (codigo, nombre, principio_activo, presentacion, requiere_formula, precio_referencia)
-         VALUES ($1, $2, $3, $4, $5, $6)
+          (codigo, nombre, principio_activo, concentracion, presentacion, requiere_formula, precio_referencia, precio_venta)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          RETURNING ${SELECT_MEDICATION}`,
         values,
       );
@@ -84,9 +87,11 @@ export function createMedicationOperations({ pool }) {
         ["codigo", "codigo", (value) => text(value, "codigo", 50)],
         ["nombre", "nombre", (value) => text(value, "nombre", 150)],
         ["principioActivo", "principio_activo", (value) => text(value, "principioActivo", 150)],
+        ["concentracion", "concentracion", (value) => text(value, "concentracion", 80)],
         ["presentacion", "presentacion", (value) => text(value, "presentacion", 120)],
         ["requiereFormula", "requiere_formula", (value) => boolean(value, "requiereFormula")],
         ["precioReferencia", "precio_referencia", (value) => money(value, "precioReferencia")],
+        ["precioVenta", "precio_venta", (value) => money(value, "precioVenta")],
       ];
       for (const [inputName, column, validate] of fields) {
         if (args[inputName] === undefined) continue;
@@ -106,7 +111,7 @@ export function createMedicationOperations({ pool }) {
     }),
 
     DeactivateMedication: operation("DeactivateMedication", async (args, headers) => {
-      await requireRoles(headers, pool, ["administrador"]);
+      await requireRoles(headers, pool, WRITE_ROLES);
       const id = positiveId(args.id);
       const result = await pool.query(
         `UPDATE medicamentos SET activo = FALSE
@@ -119,7 +124,7 @@ export function createMedicationOperations({ pool }) {
     }),
 
     ActivateMedication: operation("ActivateMedication", async (args, headers) => {
-      await requireRoles(headers, pool, ["administrador"]);
+      await requireRoles(headers, pool, WRITE_ROLES);
       const id = positiveId(args.id);
       const result = await pool.query(
         `UPDATE medicamentos SET activo = TRUE
